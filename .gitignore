@@ -1,0 +1,28 @@
+/target/
+/keys.toml
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Android shell
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/generated/
+/android/.kotlin/
+
+# iOS shell
+/ios/generated/
+/ios/DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Rust
+core/target/
+
+android/shared/build/
