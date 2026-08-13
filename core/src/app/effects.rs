@@ -289,6 +289,83 @@ pub(super) fn on_online_loaded(model: &mut Model, outcome: HttpOutcome) -> Comma
     render::render()
 }
 
+pub(super) fn on_wiki_loaded(
+    model: &mut Model,
+    dataset: WikiDataset,
+    outcome: HttpOutcome,
+) -> Command<Effect, Event> {
+    let mut commands = Vec::new();
+    match outcome {
+        HttpOutcome::Ok { body } => {
+            let json = serde_json::from_str(&body).unwrap_or_default();
+            match dataset {
+                WikiDataset::Collections => {
+                    model
+                        .wiki_collections
+                        .extend(downloader::parse_collections(&json));
+                }
+                WikiDataset::CollectionCards => {
+                    model
+                        .wiki_collection_cards
+                        .extend(downloader::parse_collection_cards(&json));
+                }
+                WikiDataset::Consumables => {
+                    model
+                        .wiki_consumables
+                        .extend(downloader::parse_consumables(&json));
+                }
+                WikiDataset::CommanderSkills => {
+                    model
+                        .wiki_commander_skills
+                        .extend(downloader::parse_commander_skills(&json));
+                }
+            }
+
+            // The encyclopedia is paginated; keep fetching until the last page.
+            let empty = serde_json::Value::Object(Default::default());
+            let meta = downloader::guard(&json, "meta", &empty);
+            let page = meta
+                .get("page")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(1);
+            let page_total = meta
+                .get("page_total")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(1);
+            let can_fetch = model
+                .config
+                .as_ref()
+                .is_some_and(|config| !api_key(config).is_empty());
+            if page < page_total && can_fetch {
+                let config = model.config.clone().expect("checked above");
+                let key = api_key(&config);
+                commands.push(
+                    HttpCap::get(super::handlers::wiki_url(
+                        dataset,
+                        model.server,
+                        &key,
+                        page + 1,
+                        &model.api_language,
+                    ))
+                    .expect_string()
+                    .build()
+                    .then_send(move |result| Event::WikiLoaded {
+                        dataset,
+                        outcome: http_outcome(result),
+                    }),
+                );
+            } else {
+                model.downloading_wiki.remove(&dataset);
+            }
+        }
+        HttpOutcome::Err { .. } => {
+            model.downloading_wiki.remove(&dataset);
+        }
+    }
+    commands.push(render::render());
+    Command::all(commands)
+}
+
 pub(super) fn on_recent_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {

@@ -47,6 +47,9 @@ class MainActivity : ComponentActivity() {
                         onRealtime = {
                             startActivity(Intent(this, RealtimeActivity::class.java))
                         },
+                        onWiki = {
+                            startActivity(Intent(this, WikiActivity::class.java))
+                        },
                         modifier = Modifier.safeDrawingPadding(),
                     )
                 }

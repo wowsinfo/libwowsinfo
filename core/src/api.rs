@@ -186,7 +186,7 @@ pub fn consumables(server: Server, api_key: &str, page_no: u64, language: &str) 
 #[must_use]
 pub fn commander_skills(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/crewskills/?application_id={api_key}&fields=icon%2Cname%2Ctier%2Cperks.description&page_no={page_no}&language={language}",
+        "https://api.worldofwarships.{}/wows/encyclopedia/crewskills/?application_id={api_key}&page_no={page_no}&language={language}",
         server.domain()
     )
 }

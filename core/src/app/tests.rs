@@ -144,6 +144,34 @@ fn select_clan_loads_clan_info_into_view() {
     assert_eq!(clan.members[0].account_name, "Bob");
 }
 
+#[test]
+fn load_wiki_collections_populates_view() {
+    let app = AppTester::<App>::default();
+    let mut model = Model::default();
+    let _ = app.update(Event::Init(config()), &mut model);
+    let update = app.update(
+        Event::LoadWiki {
+            dataset: WikiDataset::Collections,
+        },
+        &mut model,
+    );
+    let event = resolve_http_matching(
+        &app,
+        update,
+        "encyclopedia/collections",
+        serde_json::json!({
+            "status": "ok",
+            "meta": {"page": 1, "page_total": 1},
+            "data": {"1": {"collection_id": 1, "name": "C1", "description": "d", "image": "i"}}
+        }),
+    );
+    let _ = app.update(event, &mut model);
+    let collections = app.view(&model).wiki_collections;
+    assert_eq!(collections.len(), 1);
+    assert_eq!(collections.get(&1).map(|c| c.name.as_str()), Some("C1"));
+    assert!(!model.downloading_wiki.contains(&WikiDataset::Collections));
+}
+
 
 mod player;
 mod search;

@@ -438,10 +438,12 @@ fn wiki_pages_parse_and_key_by_id() {
         "data": {"5": {
             "name": "Expert",
             "icon": "ic",
-            "tier": 3,
             "type_id": 1,
             "type_name": "skill",
-            "perks": [{"perk_id": 9, "description": "bonus"}]
+            "customization": {
+                "Destroyer": {"tier": 3, "column": 1, "perks": [{"perk_id": 9, "description": "bonus"}]},
+                "Cruiser": {"tier": 4, "column": 0, "perks": [{"perk_id": 9, "description": "bonus"}, {"perk_id": 10, "description": "extra"}]}
+            }
         }}
     });
     let cols = parse_collections(&collections);
@@ -458,7 +460,8 @@ fn wiki_pages_parse_and_key_by_id() {
     let sk = parse_commander_skills(&skills);
     let s = sk.get(&5).expect("skill");
     assert_eq!(s.skill_id, 5);
-    assert_eq!(s.tier, 3);
-    assert_eq!(s.perks.len(), 1);
+    assert_eq!(s.tier, 4, "highest class tier");
+    assert_eq!(s.perks.len(), 2, "perks deduped across classes");
     assert_eq!(s.perks[0].perk_id, 9);
+    assert_eq!(s.description, "bonus\nextra");
 }

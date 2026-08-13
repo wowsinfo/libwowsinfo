@@ -31,7 +31,7 @@ pub struct Images {
 
 /// Post-processed ship entry matching the app's unique data format
 /// (`icon`, `premium`, `new`, optional `model`).
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
 pub struct EncyclopediaShip {
     pub ship_id: u64,
     #[serde(default)]
@@ -46,9 +46,9 @@ pub struct EncyclopediaShip {
     pub premium: bool,
     #[serde(default)]
     pub icon: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub new: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub model: Option<String>,
 }
 

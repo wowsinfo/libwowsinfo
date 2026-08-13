@@ -2,6 +2,21 @@
 
 use super::*;
 
+pub(super) fn wiki_url(
+    dataset: WikiDataset,
+    server: Server,
+    key: &str,
+    page: u64,
+    language: &str,
+) -> String {
+    match dataset {
+        WikiDataset::Collections => api::collections(server, key, page, language),
+        WikiDataset::CollectionCards => api::collection_cards(server, key, page, language),
+        WikiDataset::Consumables => api::consumables(server, key, page, language),
+        WikiDataset::CommanderSkills => api::commander_skills(server, key, page, language),
+    }
+}
+
 pub(super) fn init(model: &mut Model, config: Config) -> Command<Effect, Event> {
     model.config = Some(config.clone());
     model.server = config.server;
@@ -101,6 +116,55 @@ pub(super) fn select_clan(model: &mut Model, clan_id: u64) -> Command<Effect, Ev
         .expect_string()
         .build()
         .then_send(|result| Event::ClanSelectedLoaded(http_outcome(result)))
+}
+
+/// Load a wiki dataset (`/wows/encyclopedia/*`), skipping when it is already
+/// loaded or a download is in flight.
+pub(super) fn load_wiki(model: &mut Model, dataset: WikiDataset) -> Command<Effect, Event> {
+    let loaded = match dataset {
+        WikiDataset::Collections => !model.wiki_collections.is_empty(),
+        WikiDataset::CollectionCards => !model.wiki_collection_cards.is_empty(),
+        WikiDataset::Consumables => !model.wiki_consumables.is_empty(),
+        WikiDataset::CommanderSkills => !model.wiki_commander_skills.is_empty(),
+    };
+    if loaded || model.downloading_wiki.contains(&dataset) {
+        return render::render();
+    }
+    let Some(config) = model.config.clone() else {
+        return render::render();
+    };
+    let key = api_key(&config);
+    if key.is_empty() {
+        return render::render();
+    }
+    model.downloading_wiki.insert(dataset);
+    HttpCap::get(wiki_url(dataset, model.server, &key, 1, &model.api_language))
+        .expect_string()
+        .build()
+        .then_send(move |result| Event::WikiLoaded {
+            dataset,
+            outcome: http_outcome(result),
+        })
+}
+
+/// Load the paginated ship encyclopedia, skipping when already loaded or a
+/// download is in flight (used by the wiki ships tab).
+pub(super) fn load_warship(model: &mut Model) -> Command<Effect, Event> {
+    if !model.warship.is_empty() || model.downloading_warship {
+        return render::render();
+    }
+    let Some(config) = model.config.clone() else {
+        return render::render();
+    };
+    let key = api_key(&config);
+    if key.is_empty() {
+        return render::render();
+    }
+    model.downloading_warship = true;
+    HttpCap::get(api::warship(model.server, &key, 1, &model.api_language))
+        .expect_string()
+        .build()
+        .then_send(|result| Event::WarshipLoaded(http_outcome(result)))
 }
 
 pub(super) fn select(model: &mut Model, account_id: u64) -> Command<Effect, Event> {

@@ -159,28 +159,57 @@ pub fn parse_commander_skills(json: &Value) -> HashMap<u64, CommanderSkill> {
             let Some(id) = key.parse::<u64>().ok() else {
                 continue;
             };
-            let mut skill = serde_json::from_value::<CommanderSkill>(value.clone()).unwrap_or_default();
-            skill.skill_id = id;
-            let perks = value
-                .get("perks")
-                .and_then(Value::as_array)
-                .map(|list| {
-                    list.iter()
-                        .filter_map(|perk| {
-                            Some(Perk {
-                                perk_id: perk.get("perk_id").and_then(Value::as_u64).unwrap_or(0),
-                                description: perk
-                                    .get("description")
-                                    .and_then(Value::as_str)
-                                    .unwrap_or("")
-                                    .to_string(),
-                            })
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            skill.perks = perks;
-            out.insert(id, skill);
+            let str_field = |name: &str| {
+                value
+                    .get(name)
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string()
+            };
+            // The skill's tier and perks are per ship class under
+            // `customization`; use the highest tier and dedupe the perks.
+            let mut tier = 0i64;
+            let mut perks: Vec<Perk> = Vec::new();
+            if let Some(classes) = value.get("customization").and_then(Value::as_object) {
+                for class in classes.values() {
+                    if let Some(t) = class.get("tier").and_then(Value::as_i64) {
+                        tier = tier.max(t);
+                    }
+                    if let Some(list) = class.get("perks").and_then(Value::as_array) {
+                        for perk in list {
+                            let perk_id = perk.get("perk_id").and_then(Value::as_u64).unwrap_or(0);
+                            if !perks.iter().any(|p| p.perk_id == perk_id) {
+                                perks.push(Perk {
+                                    perk_id,
+                                    description: perk
+                                        .get("description")
+                                        .and_then(Value::as_str)
+                                        .unwrap_or("")
+                                        .to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            let description = perks
+                .iter()
+                .map(|perk| perk.description.clone())
+                .collect::<Vec<_>>()
+                .join("\n");
+            out.insert(
+                id,
+                CommanderSkill {
+                    skill_id: id,
+                    name: str_field("name"),
+                    description,
+                    icon: str_field("icon"),
+                    tier,
+                    type_id: value.get("type_id").and_then(Value::as_i64).unwrap_or(0),
+                    type_name: str_field("type_name"),
+                    perks,
+                },
+            );
         }
     }
     out

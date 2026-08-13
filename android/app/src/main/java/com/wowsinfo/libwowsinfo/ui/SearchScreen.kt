@@ -50,6 +50,7 @@ fun SearchScreen(
     onPlayerSelected: (ULong) -> Unit,
     onClanSelected: (ULong) -> Unit,
     onRealtime: () -> Unit,
+    onWiki: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -71,6 +72,7 @@ fun SearchScreen(
                 core.update(Event.SetServer(selected))
             }
             TextButton(onClick = onRealtime) { Text("Realtime") }
+            TextButton(onClick = onWiki) { Text("Wiki") }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

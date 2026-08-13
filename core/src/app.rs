@@ -1,7 +1,7 @@
 ﻿//! The Crux app: event/model/view-model mapping and orchestration for the
 //! player search -> stats flow, ported from the React Native app.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crux_core::{
     App as AppTrait, Command,
@@ -28,9 +28,11 @@ use effects::{
     on_achievements_loaded, on_achievements_wiki_loaded, on_clan_info_loaded, on_clan_loaded,
     on_clan_search_loaded, on_clan_selected_loaded, on_game_version_loaded, on_kv_loaded,
     on_online_loaded, on_player_loaded, on_pr_loaded, on_rank_loaded, on_rank_ships_loaded,
-    on_recent_loaded, on_search_loaded, on_ships_loaded, on_warship_loaded,
+    on_recent_loaded, on_search_loaded, on_ships_loaded, on_warship_loaded, on_wiki_loaded,
 };
-use handlers::{init, refresh, search, search_clan, select, select_clan, set_server};
+use handlers::{
+    init, load_warship, load_wiki, refresh, search, search_clan, select, select_clan, set_server,
+};
 
 /// Startup configuration supplied by the shell.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Facet, PartialEq)]
@@ -85,6 +87,12 @@ pub enum Event {
     SelectClan {
         clan_id: u64,
     },
+    /// Load a wiki dataset on demand (paginated encyclopedia endpoint).
+    LoadWiki {
+        dataset: WikiDataset,
+    },
+    /// Load the ship encyclopedia on demand (`/wows/encyclopedia/ships/`).
+    LoadWarship,
     /// Persisted the server preference.
     ServerSaved,
     /// Response to `Time::now`.
@@ -110,6 +118,10 @@ pub enum Event {
     RankShipsLoaded(HttpOutcome),
     /// Players online (`/wgn/servers/info/`).
     OnlineLoaded(HttpOutcome),
+    WikiLoaded {
+        dataset: WikiDataset,
+        outcome: HttpOutcome,
+    },
     KvLoaded {
         key: String,
         value: KvOutcome,
@@ -141,6 +153,16 @@ pub struct ViewModel {
     /// Players online across the game; -1 when the request failed.
     #[serde(default)]
     pub online: i64,
+    #[serde(default)]
+    pub warship: HashMap<u64, models::EncyclopediaShip>,
+    #[serde(default)]
+    pub wiki_collections: HashMap<u64, models::WikiCollection>,
+    #[serde(default)]
+    pub wiki_collection_cards: HashMap<u64, models::CollectionCard>,
+    #[serde(default)]
+    pub wiki_consumables: HashMap<u64, models::Consumable>,
+    #[serde(default)]
+    pub wiki_commander_skills: HashMap<u64, models::CommanderSkill>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Facet, PartialEq)]
@@ -157,6 +179,16 @@ impl Default for Phase {
     fn default() -> Self {
         Self::Idle
     }
+}
+
+/// A wiki dataset that can be loaded on demand (`/wows/encyclopedia/*`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Facet)]
+#[repr(C)]
+pub enum WikiDataset {
+    Collections,
+    CollectionCards,
+    Consumables,
+    CommanderSkills,
 }
 
 /// One search hit shown in the UI.
@@ -192,6 +224,11 @@ pub struct Model {
     clan_search_results: Vec<models::ClanSearchResult>,
     selected_clan: Option<models::ClanInfo>,
     online: i64,
+    wiki_collections: HashMap<u64, models::WikiCollection>,
+    wiki_collection_cards: HashMap<u64, models::CollectionCard>,
+    wiki_consumables: HashMap<u64, models::Consumable>,
+    wiki_commander_skills: HashMap<u64, models::CommanderSkill>,
+    downloading_wiki: HashSet<WikiDataset>,
     downloading_achievements: bool,
     /// True while the paginated ship encyclopedia download is in progress.
     downloading_warship: bool,
@@ -216,6 +253,8 @@ impl AppTrait for App {
             Event::Refresh => refresh(model),
             Event::SearchClan { query } => search_clan(model, query),
             Event::SelectClan { clan_id } => select_clan(model, clan_id),
+            Event::LoadWiki { dataset } => load_wiki(model, dataset),
+            Event::LoadWarship => load_warship(model),
             Event::ServerSaved => render::render(),
             Event::NowLoaded(_) => render::render(),
             Event::GameVersionLoaded(outcome) => on_game_version_loaded(model, outcome),
@@ -234,6 +273,7 @@ impl AppTrait for App {
             Event::RankLoaded(outcome) => on_rank_loaded(model, outcome),
             Event::RankShipsLoaded(outcome) => on_rank_ships_loaded(model, outcome),
             Event::OnlineLoaded(outcome) => on_online_loaded(model, outcome),
+            Event::WikiLoaded { dataset, outcome } => on_wiki_loaded(model, dataset, outcome),
             Event::KvLoaded { key, value } => on_kv_loaded(model, key, value),
         }
     }
@@ -253,6 +293,11 @@ impl AppTrait for App {
             clan_search_results: model.clan_search_results.clone(),
             selected_clan: model.selected_clan.clone(),
             online: model.online,
+            warship: model.warship.clone(),
+            wiki_collections: model.wiki_collections.clone(),
+            wiki_collection_cards: model.wiki_collection_cards.clone(),
+            wiki_consumables: model.wiki_consumables.clone(),
+            wiki_commander_skills: model.wiki_commander_skills.clone(),
         }
     }
 }
