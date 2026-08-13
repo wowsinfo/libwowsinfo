@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.wowsinfo.libwowsinfo.ShipStatLine
+import com.wowsinfo.libwowsinfo.PvpStats
 import com.wowsinfo.libwowsinfo.ui.SectionTitle
 import com.wowsinfo.libwowsinfo.ui.Stat
 import com.wowsinfo.libwowsinfo.ui.formatNumber
@@ -44,15 +45,11 @@ import com.wowsinfo.libwowsinfo.ui.parseRatingColor
 @Composable
 fun ShipDetailScreen(ship: ShipStatLine, onBack: () -> Unit) {
     val ratingColor = remember(ship.ratingColour) { parseRatingColor(ship.ratingColour) }
-    var mode by remember { mutableStateOf(StatMode.PvP) }
-    val stats = when (mode) {
-        StatMode.PvP -> ship.statistics.pvp
-        StatMode.Solo -> ship.statistics.solo
-        StatMode.Div2 -> ship.statistics.div2
-        StatMode.Div3 -> ship.statistics.div3
-        StatMode.PvE -> ship.statistics.pve
-        StatMode.Rank -> ship.statistics.rankSolo
+    val availableModes = remember(ship) {
+        StatMode.entries.filter { modeStats(ship, it)?.battles?.let { battles -> battles > 0 } == true }
     }
+    var mode by remember { mutableStateOf(availableModes.firstOrNull() ?: StatMode.PvP) }
+    val stats = modeStats(ship, mode)
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -76,10 +73,21 @@ fun ShipDetailScreen(ship: ShipStatLine, onBack: () -> Unit) {
             item { ShipBanner(ship, ratingColor) }
             item { ShipSummary(ship) }
             item { ShipAverage(ship) }
-            item { ModeSelector(mode) { mode = it } }
+            if (availableModes.size > 1) {
+                item { ModeSelector(mode) { mode = it } }
+            }
             item { ModeStatsGrid(stats) }
         }
     }
+}
+
+private fun modeStats(ship: ShipStatLine, mode: StatMode): PvpStats? = when (mode) {
+    StatMode.PvP -> ship.statistics.pvp
+    StatMode.Solo -> ship.statistics.solo
+    StatMode.Div2 -> ship.statistics.div2
+    StatMode.Div3 -> ship.statistics.div3
+    StatMode.PvE -> ship.statistics.pve
+    StatMode.Rank -> ship.statistics.rankSolo
 }
 
 @Composable

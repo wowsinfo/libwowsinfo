@@ -15,7 +15,7 @@ pub fn player_search(server: Server, api_key: &str, query: &str) -> String {
 #[must_use]
 pub fn player_info(server: Server, api_key: &str, account_id: u64) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/account/info/?application_id={api_key}&account_id={account_id}",
+        "https://api.worldofwarships.{}/wows/account/info/?application_id={api_key}&account_id={account_id}&extra=statistics.pvp_div2%2Cstatistics.pvp_div3%2Cstatistics.pvp_solo%2Cstatistics.pve%2Cstatistics.rank_solo",
         server.domain()
     )
 }
@@ -181,6 +181,8 @@ mod tests {
     fn player_info_uses_com_domain() {
         let url = player_info(Server::Com, "KEY", 7);
         assert!(url.contains("worldofwarships.com"));
+        assert!(url.contains("extra=statistics.pvp_div2"));
+        assert!(url.contains("statistics.pvp_solo"));
     }
 
     #[test]

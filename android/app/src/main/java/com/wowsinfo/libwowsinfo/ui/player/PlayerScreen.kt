@@ -1,6 +1,5 @@
 package com.wowsinfo.libwowsinfo.ui.player
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,8 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.wowsinfo.libwowsinfo.Event
+import com.wowsinfo.libwowsinfo.ShipStatLine
 import com.wowsinfo.libwowsinfo.ViewModel
 import com.wowsinfo.libwowsinfo.core.Core
 
@@ -39,11 +39,11 @@ fun PlayerScreen(
     core: Core,
     viewModel: ViewModel,
     onBack: () -> Unit,
+    onShipClick: (ShipStatLine) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val player = viewModel.player
     var tabIndex by rememberSaveable { mutableStateOf(0) }
-    var selectedShipId by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -64,31 +64,20 @@ fun PlayerScreen(
                 }
             }
         } else {
-            val selectedShip = selectedShipId?.let { id ->
-                player.ships.firstOrNull { it.shipId.toString() == id }
-            }
-            if (selectedShip != null) {
-                BackHandler { selectedShipId = null }
-                ShipDetailScreen(selectedShip, onBack = { selectedShipId = null })
-            } else {
-                SecondaryTabRow(selectedTabIndex = tabIndex) {
-                    PlayerTab.entries.forEachIndexed { index, tab ->
-                        Tab(
-                            selected = tabIndex == index,
-                            onClick = { tabIndex = index },
-                            text = { Text(tab.label) },
-                        )
-                    }
-                }
-                when (PlayerTab.entries[tabIndex]) {
-                    PlayerTab.General -> GeneralTab(player)
-                    PlayerTab.Achievement -> AchievementTab(player.achievements)
-                    PlayerTab.Charts -> ChartsTab(player)
-                    PlayerTab.Ships -> ShipsTab(
-                        ships = player.ships,
-                        onShipClick = { selectedShipId = it.shipId.toString() },
+            SecondaryTabRow(selectedTabIndex = tabIndex) {
+                PlayerTab.entries.forEachIndexed { index, tab ->
+                    Tab(
+                        selected = tabIndex == index,
+                        onClick = { tabIndex = index },
+                        text = { Text(tab.label) },
                     )
                 }
+            }
+            when (PlayerTab.entries[tabIndex]) {
+                PlayerTab.General -> GeneralTab(player)
+                PlayerTab.Achievement -> AchievementTab(player.achievements)
+                PlayerTab.Charts -> ChartsTab(player)
+                PlayerTab.Ships -> ShipsTab(player.ships, onShipClick)
             }
         }
     }
