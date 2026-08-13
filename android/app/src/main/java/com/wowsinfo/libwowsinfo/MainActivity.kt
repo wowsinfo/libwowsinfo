@@ -37,6 +37,16 @@ class MainActivity : ComponentActivity() {
                                     .putExtra(PlayerActivity.EXTRA_ACCOUNT_ID, accountId.toString()),
                             )
                         },
+                        onClanSelected = { clanId ->
+                            core.update(Event.SelectClan(clanId))
+                            startActivity(
+                                Intent(this, ClanActivity::class.java)
+                                    .putExtra(ClanActivity.EXTRA_CLAN_ID, clanId.toString()),
+                            )
+                        },
+                        onRealtime = {
+                            startActivity(Intent(this, RealtimeActivity::class.java))
+                        },
                         modifier = Modifier.safeDrawingPadding(),
                     )
                 }

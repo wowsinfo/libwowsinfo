@@ -32,6 +32,7 @@ private enum class PlayerTab(val label: String) {
     Achievement("Achievement"),
     Charts("Charts"),
     Ships("Ships"),
+    Rank("Rank"),
 }
 
 @Composable
@@ -78,6 +79,7 @@ fun PlayerScreen(
                 PlayerTab.Achievement -> AchievementTab(player.achievements)
                 PlayerTab.Charts -> ChartsTab(player)
                 PlayerTab.Ships -> ShipsTab(player.ships, onShipClick)
+                PlayerTab.Rank -> RankTab(player)
             }
         }
     }

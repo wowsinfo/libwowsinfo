@@ -26,11 +26,11 @@ type TimeCap = crux_time::Time<Effect, Event>;
 
 use effects::{
     on_achievements_loaded, on_achievements_wiki_loaded, on_clan_info_loaded, on_clan_loaded,
-    on_clan_search_loaded, on_game_version_loaded, on_kv_loaded, on_online_loaded,
-    on_player_loaded, on_pr_loaded, on_rank_loaded, on_rank_ships_loaded, on_recent_loaded,
-    on_search_loaded, on_ships_loaded, on_warship_loaded,
+    on_clan_search_loaded, on_clan_selected_loaded, on_game_version_loaded, on_kv_loaded,
+    on_online_loaded, on_player_loaded, on_pr_loaded, on_rank_loaded, on_rank_ships_loaded,
+    on_recent_loaded, on_search_loaded, on_ships_loaded, on_warship_loaded,
 };
-use handlers::{init, refresh, search, search_clan, select, set_server};
+use handlers::{init, refresh, search, search_clan, select, select_clan, set_server};
 
 /// Startup configuration supplied by the shell.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Facet, PartialEq)]
@@ -81,6 +81,10 @@ pub enum Event {
     SearchClan {
         query: String,
     },
+    /// Open a clan's info screen (`/wows/clans/info/`).
+    SelectClan {
+        clan_id: u64,
+    },
     /// Persisted the server preference.
     ServerSaved,
     /// Response to `Time::now`.
@@ -97,6 +101,8 @@ pub enum Event {
     /// Full clan info (`/wows/clans/info/`), fetched after `ClanLoaded`.
     ClanInfoLoaded(HttpOutcome),
     ClanSearchLoaded(HttpOutcome),
+    /// Full clan info for the clan screen, requested via `SelectClan`.
+    ClanSelectedLoaded(HttpOutcome),
     RecentLoaded(HttpOutcome),
     /// Ranked seasons (`/wows/seasons/accountinfo/`).
     RankLoaded(HttpOutcome),
@@ -130,6 +136,8 @@ pub struct ViewModel {
     pub player: Option<models::PlayerView>,
     #[serde(default)]
     pub clan_search_results: Vec<models::ClanSearchResult>,
+    #[serde(default)]
+    pub selected_clan: Option<models::ClanInfo>,
     /// Players online across the game; -1 when the request failed.
     #[serde(default)]
     pub online: i64,
@@ -182,6 +190,7 @@ pub struct Model {
     clan: Option<models::ClanInfo>,
     clan_id: Option<u64>,
     clan_search_results: Vec<models::ClanSearchResult>,
+    selected_clan: Option<models::ClanInfo>,
     online: i64,
     downloading_achievements: bool,
     /// True while the paginated ship encyclopedia download is in progress.
@@ -206,6 +215,7 @@ impl AppTrait for App {
             Event::SelectPlayer { account_id } => select(model, account_id),
             Event::Refresh => refresh(model),
             Event::SearchClan { query } => search_clan(model, query),
+            Event::SelectClan { clan_id } => select_clan(model, clan_id),
             Event::ServerSaved => render::render(),
             Event::NowLoaded(_) => render::render(),
             Event::GameVersionLoaded(outcome) => on_game_version_loaded(model, outcome),
@@ -219,6 +229,7 @@ impl AppTrait for App {
             Event::ClanLoaded(outcome) => on_clan_loaded(model, outcome),
             Event::ClanInfoLoaded(outcome) => on_clan_info_loaded(model, outcome),
             Event::ClanSearchLoaded(outcome) => on_clan_search_loaded(model, outcome),
+            Event::ClanSelectedLoaded(outcome) => on_clan_selected_loaded(model, outcome),
             Event::RecentLoaded(outcome) => on_recent_loaded(model, outcome),
             Event::RankLoaded(outcome) => on_rank_loaded(model, outcome),
             Event::RankShipsLoaded(outcome) => on_rank_ships_loaded(model, outcome),
@@ -240,6 +251,7 @@ impl AppTrait for App {
                 .collect(),
             player: model.selected.clone(),
             clan_search_results: model.clan_search_results.clone(),
+            selected_clan: model.selected_clan.clone(),
             online: model.online,
         }
     }

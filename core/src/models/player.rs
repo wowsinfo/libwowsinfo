@@ -246,11 +246,11 @@ pub struct PlayerView {
     pub clan_tag: String,
     #[serde(default)]
     pub recent: Option<RecentOverview>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub rank: Option<super::rank::RankPlayerInfo>,
     #[serde(default)]
     pub rank_ships: Vec<super::rank::RankShipStat>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub clan: Option<super::clan::ClanInfo>,
 }
 

@@ -16,11 +16,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,51 +48,118 @@ fun SearchScreen(
     core: Core,
     viewModel: ViewModel,
     onPlayerSelected: (ULong) -> Unit,
+    onClanSelected: (ULong) -> Unit,
+    onRealtime: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
     var server by remember { mutableStateOf(Server.ASIA) }
+    var clanMode by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ServerSelector(server) { selected ->
-            server = selected
-            core.update(Event.SetServer(selected))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ServerSelector(server) { selected ->
+                server = selected
+                core.update(Event.SetServer(selected))
+            }
+            TextButton(onClick = onRealtime) { Text("Realtime") }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = !clanMode,
+                onClick = { clanMode = false },
+                label = { Text("Player") },
+            )
+            FilterChip(
+                selected = clanMode,
+                onClick = { clanMode = true },
+                label = { Text("Clan") },
+            )
         }
 
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search player nickname") },
+            placeholder = { Text(if (clanMode) "Search clan tag" else "Search player nickname") },
             singleLine = true,
             shape = RoundedCornerShape(24.dp),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = {
-                scope.launch { core.update(Event.SearchPlayer(query)) }
+                scope.launch {
+                    if (clanMode) core.update(Event.SearchClan(query)) else core.update(Event.SearchPlayer(query))
+                }
             }),
         )
 
-        when (val phase = viewModel.phase) {
-            is Phase.Searching ->
-                Box(Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+        if (clanMode) {
+            if (viewModel.clanSearchResults.isEmpty()) {
+                Text(
+                    "Enter a clan tag to search.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                ClanResultList(viewModel.clanSearchResults, onClanSelected)
+            }
+        } else {
+            when (val phase = viewModel.phase) {
+                is Phase.Searching ->
+                    Box(Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
 
-            is Phase.Error ->
-                Text(phase.value, color = MaterialTheme.colorScheme.error)
+                is Phase.Error ->
+                    Text(phase.value, color = MaterialTheme.colorScheme.error)
 
-            is Phase.Idle ->
-                if (viewModel.searchResults.isEmpty()) {
-                    Text("Enter a nickname to look up a player.", style = MaterialTheme.typography.bodyMedium)
-                } else {
-                    ResultList(viewModel.searchResults, core, onPlayerSelected)
-                }
+                is Phase.Idle ->
+                    if (viewModel.searchResults.isEmpty()) {
+                        Text("Enter a nickname to look up a player.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        ResultList(viewModel.searchResults, core, onPlayerSelected)
+                    }
 
-            is Phase.LoadingPlayer, is Phase.Player -> Unit
+                is Phase.LoadingPlayer, is Phase.Player -> Unit
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClanResultList(
+    results: List<com.wowsinfo.libwowsinfo.ClanSearchResult>,
+    onClanSelected: (ULong) -> Unit,
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        item { SectionTitle("Clan - ${results.size}") }
+        items(results, key = { it.clanId.toString() }) { result ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onClanSelected(result.clanId) }
+                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    result.tag,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    result.clanId.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         }
     }
 }

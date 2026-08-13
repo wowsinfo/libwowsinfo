@@ -220,6 +220,38 @@ pub(super) fn on_clan_search_loaded(model: &mut Model, outcome: HttpOutcome) -> 
     render::render()
 }
 
+pub(super) fn on_clan_selected_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+    match outcome {
+        HttpOutcome::Ok { body } => {
+            let json = serde_json::from_str(&body).unwrap_or_default();
+            let clan_id = model
+                .selected_clan
+                .as_ref()
+                .map(|clan| clan.clan_id)
+                .unwrap_or(0);
+            let parsed = downloader::parse_clan_info(&json, clan_id);
+            // The response carries the id; fall back to the requested one.
+            let parsed = parsed.or_else(|| {
+                json.get("data")
+                    .and_then(serde_json::Value::as_object)
+                    .and_then(|data| data.values().next())
+                    .and_then(|first| {
+                        first
+                            .get("clan_id")
+                            .and_then(serde_json::Value::as_u64)
+                            .map(|id| downloader::parse_clan_info(&json, id))
+                            .flatten()
+                    })
+            });
+            if let Some(clan) = parsed {
+                model.selected_clan = Some(clan);
+            }
+        }
+        HttpOutcome::Err { .. } => {}
+    }
+    render::render()
+}
+
 pub(super) fn on_rank_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {

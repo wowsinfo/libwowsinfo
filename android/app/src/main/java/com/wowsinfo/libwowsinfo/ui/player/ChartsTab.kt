@@ -16,18 +16,28 @@ import com.wowsinfo.libwowsinfo.PlayerView
 import com.wowsinfo.libwowsinfo.ShipStatLine
 import com.wowsinfo.libwowsinfo.ui.ChartSection
 import com.wowsinfo.libwowsinfo.ui.LineChartSection
+import com.wowsinfo.libwowsinfo.ui.charts.DonutChartSection
+import com.wowsinfo.libwowsinfo.ui.charts.PerClassSection
+import com.wowsinfo.libwowsinfo.ui.charts.RadarChartSection
+import com.wowsinfo.libwowsinfo.ui.charts.modeDistribution
+import com.wowsinfo.libwowsinfo.ui.charts.perClassAverages
+import com.wowsinfo.libwowsinfo.ui.charts.playerRadar
 import com.wowsinfo.libwowsinfo.ui.formatNumber
 import com.wowsinfo.libwowsinfo.ui.formatPercent
 import java.util.Locale
 
 /**
- * The nine charts from the Flutter app: recent battles/winrate/damage (line
+ * The charts from the Flutter app: stats-vs-average radar, per-class
+ * averages, game-mode distribution, recent battles/winrate/damage (line
  * charts), battles by nation/type/tier, and top ten ships by battles,
  * winrate and damage.
  */
 @Composable
 fun ChartsTab(player: PlayerView) {
     val ships = player.ships
+    val radar = remember(ships) { playerRadar(ships) }
+    val classes = remember(ships) { perClassAverages(ships) }
+    val modes = remember(player.statistics) { modeDistribution(player.statistics) }
     val tier = remember(ships) { aggregate(ships) { it.tier.toString() } }
     val type = remember(ships) { aggregate(ships) { it.type } }
     val nation = remember(ships) { aggregate(ships) { it.nation } }
@@ -44,6 +54,15 @@ fun ChartsTab(player: PlayerView) {
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        radar?.let { values ->
+            item { RadarChartSection(values) }
+        }
+        if (classes.isNotEmpty()) {
+            item { PerClassSection(classes) }
+        }
+        if (modes.isNotEmpty()) {
+            item { DonutChartSection(modes) }
+        }
         recent?.takeIf { it.days.size >= 2 }?.let { overview ->
             item {
                 LineChartSection(

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,9 +69,35 @@ fun GeneralTab(player: PlayerView) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { PlayerHeader(player) }
+        player.clan?.let { clan ->
+            item { ClanCard(clan) }
+        }
         item { ModeSelector(mode) { mode = it } }
         item { ModeStatsGrid(stats) }
         item { BestShipsSection(player.ships) }
+    }
+}
+
+/** Compact clan summary card shown above the mode stats. */
+@Composable
+private fun ClanCard(clan: com.wowsinfo.libwowsinfo.ClanInfo) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "${clan.name} [${clan.tag}]",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "${formatNumber(clan.membersCount)} members" +
+                    clan.leaderName.takeIf { it.isNotEmpty() }?.let { " · Leader: $it" }.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

@@ -34,6 +34,10 @@ import com.wowsinfo.libwowsinfo.ShipStatLine
 import com.wowsinfo.libwowsinfo.PvpStats
 import com.wowsinfo.libwowsinfo.ui.SectionTitle
 import com.wowsinfo.libwowsinfo.ui.Stat
+import com.wowsinfo.libwowsinfo.ui.charts.DonutChartSection
+import com.wowsinfo.libwowsinfo.ui.charts.RadarChartSection
+import com.wowsinfo.libwowsinfo.ui.charts.modeDistribution
+import com.wowsinfo.libwowsinfo.ui.charts.shipRadar
 import com.wowsinfo.libwowsinfo.ui.formatNumber
 import com.wowsinfo.libwowsinfo.ui.formatPercent
 import com.wowsinfo.libwowsinfo.ui.parseRatingColor
@@ -50,6 +54,8 @@ fun ShipDetailScreen(ship: ShipStatLine, onBack: () -> Unit) {
     }
     var mode by remember { mutableStateOf(availableModes.firstOrNull() ?: StatMode.PvP) }
     val stats = modeStats(ship, mode)
+    val radar = remember(ship) { shipRadar(ship) }
+    val shipModes = remember(ship) { modeDistribution(ship.statistics) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -73,6 +79,12 @@ fun ShipDetailScreen(ship: ShipStatLine, onBack: () -> Unit) {
             item { ShipBanner(ship, ratingColor) }
             item { ShipSummary(ship) }
             item { ShipAverage(ship) }
+            radar?.let { values ->
+                item { RadarChartSection(values) }
+            }
+            if (shipModes.isNotEmpty()) {
+                item { DonutChartSection(shipModes) }
+            }
             if (availableModes.size > 1) {
                 item { ModeSelector(mode) { mode = it } }
             }

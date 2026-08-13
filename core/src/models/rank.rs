@@ -19,13 +19,13 @@ pub struct RankPlayerInfo {
 /// One ranked season's stats (`rank_solo`/`rank_div2`/`rank_div3`).
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
 pub struct RankSeason {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub rank_info: Option<RankInfo>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub rank_solo: Option<PvpStats>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub rank_div2: Option<PvpStats>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub rank_div3: Option<PvpStats>,
 }
 

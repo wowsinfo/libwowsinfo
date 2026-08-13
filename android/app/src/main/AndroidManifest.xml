@@ -32,6 +32,16 @@
             android:exported="false"
             android:parentActivityName=".PlayerActivity"
             android:theme="@style/Theme.WoWsInfo" />
+        <activity
+            android:name=".ClanActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.WoWsInfo" />
+        <activity
+            android:name=".RealtimeActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.WoWsInfo" />
     </application>
 
 </manifest>

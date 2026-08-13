@@ -88,6 +88,21 @@ pub(super) fn search_clan(model: &mut Model, query: String) -> Command<Effect, E
         .then_send(|result| Event::ClanSearchLoaded(http_outcome(result)))
 }
 
+/// Open clan info: `/wows/clans/info/`.
+pub(super) fn select_clan(model: &mut Model, clan_id: u64) -> Command<Effect, Event> {
+    let Some(config) = model.config.clone() else {
+        return render::render();
+    };
+    let key = api_key(&config);
+    if key.is_empty() {
+        return render::render();
+    }
+    HttpCap::get(api::clan_info(model.server, &key, clan_id))
+        .expect_string()
+        .build()
+        .then_send(|result| Event::ClanSelectedLoaded(http_outcome(result)))
+}
+
 pub(super) fn select(model: &mut Model, account_id: u64) -> Command<Effect, Event> {
     model.phase = Phase::LoadingPlayer;
     model.pending_account_id = Some(account_id);
