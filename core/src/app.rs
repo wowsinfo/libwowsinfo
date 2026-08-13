@@ -28,10 +28,12 @@ use effects::{
     on_achievements_loaded, on_achievements_wiki_loaded, on_clan_info_loaded, on_clan_loaded,
     on_clan_search_loaded, on_clan_selected_loaded, on_game_version_loaded, on_kv_loaded,
     on_online_loaded, on_player_loaded, on_pr_loaded, on_rank_loaded, on_rank_ships_loaded,
-    on_recent_loaded, on_search_loaded, on_ships_loaded, on_warship_loaded, on_wiki_loaded,
+    on_recent_loaded, on_search_loaded, on_ship_wiki_loaded, on_ships_loaded, on_warship_loaded,
+    on_wiki_loaded,
 };
 use handlers::{
-    init, load_warship, load_wiki, refresh, search, search_clan, select, select_clan, set_server,
+    init, load_ship_wiki, load_warship, load_wiki, refresh, search, search_clan, select,
+    select_clan, set_server,
 };
 
 /// Startup configuration supplied by the shell.
@@ -93,6 +95,10 @@ pub enum Event {
     },
     /// Load the ship encyclopedia on demand (`/wows/encyclopedia/ships/`).
     LoadWarship,
+    /// Load a ship's full wiki entry (`/wows/encyclopedia/ships/?ship_id=`).
+    LoadShipWiki {
+        ship_id: u64,
+    },
     /// Persisted the server preference.
     ServerSaved,
     /// Response to `Time::now`.
@@ -122,6 +128,7 @@ pub enum Event {
         dataset: WikiDataset,
         outcome: HttpOutcome,
     },
+    ShipWikiLoaded(HttpOutcome),
     KvLoaded {
         key: String,
         value: KvOutcome,
@@ -163,6 +170,8 @@ pub struct ViewModel {
     pub wiki_consumables: HashMap<u64, models::Consumable>,
     #[serde(default)]
     pub wiki_commander_skills: HashMap<u64, models::CommanderSkill>,
+    #[serde(default)]
+    pub selected_ship_wiki: Option<models::ShipWiki>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Facet, PartialEq)]
@@ -229,6 +238,8 @@ pub struct Model {
     wiki_consumables: HashMap<u64, models::Consumable>,
     wiki_commander_skills: HashMap<u64, models::CommanderSkill>,
     downloading_wiki: HashSet<WikiDataset>,
+    selected_ship_wiki: Option<models::ShipWiki>,
+    pending_ship_wiki_id: Option<u64>,
     downloading_achievements: bool,
     /// True while the paginated ship encyclopedia download is in progress.
     downloading_warship: bool,
@@ -255,6 +266,7 @@ impl AppTrait for App {
             Event::SelectClan { clan_id } => select_clan(model, clan_id),
             Event::LoadWiki { dataset } => load_wiki(model, dataset),
             Event::LoadWarship => load_warship(model),
+            Event::LoadShipWiki { ship_id } => load_ship_wiki(model, ship_id),
             Event::ServerSaved => render::render(),
             Event::NowLoaded(_) => render::render(),
             Event::GameVersionLoaded(outcome) => on_game_version_loaded(model, outcome),
@@ -274,6 +286,7 @@ impl AppTrait for App {
             Event::RankShipsLoaded(outcome) => on_rank_ships_loaded(model, outcome),
             Event::OnlineLoaded(outcome) => on_online_loaded(model, outcome),
             Event::WikiLoaded { dataset, outcome } => on_wiki_loaded(model, dataset, outcome),
+            Event::ShipWikiLoaded(outcome) => on_ship_wiki_loaded(model, outcome),
             Event::KvLoaded { key, value } => on_kv_loaded(model, key, value),
         }
     }
@@ -298,6 +311,7 @@ impl AppTrait for App {
             wiki_collection_cards: model.wiki_collection_cards.clone(),
             wiki_consumables: model.wiki_consumables.clone(),
             wiki_commander_skills: model.wiki_commander_skills.clone(),
+            selected_ship_wiki: model.selected_ship_wiki.clone(),
         }
     }
 }

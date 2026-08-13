@@ -366,6 +366,19 @@ pub(super) fn on_wiki_loaded(
     Command::all(commands)
 }
 
+pub(super) fn on_ship_wiki_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+    match outcome {
+        HttpOutcome::Ok { body } => {
+            let json = serde_json::from_str(&body).unwrap_or_default();
+            if let Some(ship_id) = model.pending_ship_wiki_id {
+                model.selected_ship_wiki = downloader::parse_ship_wiki(&json, ship_id);
+            }
+        }
+        HttpOutcome::Err { .. } => {}
+    }
+    render::render()
+}
+
 pub(super) fn on_recent_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {

@@ -172,6 +172,43 @@ fn load_wiki_collections_populates_view() {
     assert!(!model.downloading_wiki.contains(&WikiDataset::Collections));
 }
 
+#[test]
+fn load_ship_wiki_populates_view() {
+    let app = AppTester::<App>::default();
+    let mut model = Model::default();
+    let _ = app.update(Event::Init(config()), &mut model);
+    let update = app.update(
+        Event::LoadShipWiki {
+            ship_id: 3542005744,
+        },
+        &mut model,
+    );
+    let event = resolve_http_matching(
+        &app,
+        update,
+        "encyclopedia/ships",
+        serde_json::json!({
+            "status": "ok",
+            "data": {"3542005744": {
+                "ship_id": 3542005744u64,
+                "name": "Hermelin",
+                "type": "dd",
+                "tier": 1,
+                "default_profile": {
+                    "armour": {"total": 51, "health": 37500},
+                    "weaponry": {"artillery": 72},
+                    "mobility": {"total": 55, "max_speed": 32.5}
+                }
+            }}
+        }),
+    );
+    let _ = app.update(event, &mut model);
+    let ship = app.view(&model).selected_ship_wiki.expect("ship wiki");
+    assert_eq!(ship.name, "Hermelin");
+    assert_eq!(ship.profile.armour.total, 51);
+    assert_eq!(ship.profile.weaponry.artillery, 72);
+}
+
 
 mod player;
 mod search;

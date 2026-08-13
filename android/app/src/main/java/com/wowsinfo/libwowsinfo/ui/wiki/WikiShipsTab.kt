@@ -2,6 +2,7 @@ package com.wowsinfo.libwowsinfo.ui.wiki
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,7 +21,10 @@ import com.wowsinfo.libwowsinfo.EncyclopediaShip
 
 /** Ship encyclopedia list ordered by tier then type. */
 @Composable
-fun WikiShipsTab(ships: Map<ULong, EncyclopediaShip>) {
+fun WikiShipsTab(
+    ships: Map<ULong, EncyclopediaShip>,
+    onShipClick: (ULong) -> Unit,
+) {
     if (ships.isEmpty()) {
         LoadingHint("Loading ships...")
         return
@@ -33,17 +37,18 @@ fun WikiShipsTab(ships: Map<ULong, EncyclopediaShip>) {
         contentPadding = PaddingValues(8.dp),
     ) {
         items(sorted, key = { it.shipId.toString() }) { ship ->
-            RowShip(ship)
+            RowShip(ship, onClick = { onShipClick(ship.shipId) })
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         }
     }
 }
 
 @Composable
-private fun RowShip(ship: EncyclopediaShip) {
+private fun RowShip(ship: EncyclopediaShip, onClick: () -> Unit) {
     androidx.compose.foundation.layout.Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

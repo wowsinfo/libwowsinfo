@@ -1,6 +1,7 @@
 package com.wowsinfo.libwowsinfo
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -36,6 +37,12 @@ class WikiActivity : ComponentActivity() {
                     WikiScreen(
                         viewModel = viewModel,
                         onBack = { finish() },
+                        onShipClick = { shipId ->
+                            startActivity(
+                                Intent(this, WikiShipDetailActivity::class.java)
+                                    .putExtra(WikiShipDetailActivity.EXTRA_SHIP_ID, shipId.toString()),
+                            )
+                        },
                         modifier = Modifier.fillMaxSize().safeDrawingPadding(),
                     )
                 }

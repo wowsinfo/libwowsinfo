@@ -167,6 +167,22 @@ pub(super) fn load_warship(model: &mut Model) -> Command<Effect, Event> {
         .then_send(|result| Event::WarshipLoaded(http_outcome(result)))
 }
 
+/// Load one ship's full wiki entry (`/wows/encyclopedia/ships/?ship_id=`).
+pub(super) fn load_ship_wiki(model: &mut Model, ship_id: u64) -> Command<Effect, Event> {
+    let Some(config) = model.config.clone() else {
+        return render::render();
+    };
+    let key = api_key(&config);
+    if key.is_empty() {
+        return render::render();
+    }
+    model.pending_ship_wiki_id = Some(ship_id);
+    HttpCap::get(api::ship_wiki(model.server, &key, ship_id, &model.api_language))
+        .expect_string()
+        .build()
+        .then_send(|result| Event::ShipWikiLoaded(http_outcome(result)))
+}
+
 pub(super) fn select(model: &mut Model, account_id: u64) -> Command<Effect, Event> {
     model.phase = Phase::LoadingPlayer;
     model.pending_account_id = Some(account_id);

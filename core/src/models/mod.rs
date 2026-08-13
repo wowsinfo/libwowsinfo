@@ -17,8 +17,10 @@ pub use player::{
 };
 pub use rank::{RankInfo, RankPlayerInfo, RankSeason, RankShipStat};
 pub use wiki::{
-    CollectionCard, CommanderSkill, Consumable, ConsumableProfile, EncyclopediaShip, Images, Perk,
-    RawEncyclopediaShip, WikiCollection,
+    AntiAircraftProfile, AntiAircraftSlot, ArtilleryProfile, CollectionCard, CommanderSkill,
+    Consumable, ConsumableProfile, EncyclopediaShip, EngineProfile, GunSlot, HullProfile, Images,
+    MinMax, Perk, RawEncyclopediaShip, ShellInfo, ShipArmour, ShipConcealment, ShipMobility,
+    ShipProfile, ShipWeaponry, ShipWiki, TorpedoProfile, WikiCollection,
 };
 
 /// Standard Wargaming API envelope: `{status, meta, data, error}`.

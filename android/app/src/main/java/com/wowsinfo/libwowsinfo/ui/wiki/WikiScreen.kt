@@ -33,6 +33,7 @@ private enum class WikiTab(val label: String) {
 fun WikiScreen(
     viewModel: ViewModel,
     onBack: () -> Unit,
+    onShipClick: (ULong) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tabIndex by rememberSaveable { mutableStateOf(0) }
@@ -58,7 +59,7 @@ fun WikiScreen(
             }
         }
         when (WikiTab.entries[tabIndex]) {
-            WikiTab.Ships -> WikiShipsTab(viewModel.warship)
+            WikiTab.Ships -> WikiShipsTab(viewModel.warship, onShipClick)
             WikiTab.Consumables -> WikiConsumablesTab(viewModel.wikiConsumables)
             WikiTab.Skills -> WikiSkillsTab(viewModel.wikiCommanderSkills)
             WikiTab.Collections -> WikiCollectionsTab(viewModel.wikiCollections)
