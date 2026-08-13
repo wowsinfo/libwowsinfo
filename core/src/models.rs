@@ -368,5 +368,8 @@ pub struct ShipStatLine {
     pub avg_frags: f64,
     pub rating: f64,
     pub rating_colour: String,
+    pub rating_comment: String,
     pub ap: f64,
+    #[serde(default)]
+    pub statistics: PlayerStatistics,
 }

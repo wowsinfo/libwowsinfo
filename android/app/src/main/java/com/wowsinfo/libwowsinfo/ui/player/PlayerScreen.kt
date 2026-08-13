@@ -1,5 +1,6 @@
 package com.wowsinfo.libwowsinfo.ui.player
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +43,7 @@ fun PlayerScreen(
 ) {
     val player = viewModel.player
     var tabIndex by rememberSaveable { mutableStateOf(0) }
+    var selectedShipId by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -62,20 +64,31 @@ fun PlayerScreen(
                 }
             }
         } else {
-            SecondaryTabRow(selectedTabIndex = tabIndex) {
-                PlayerTab.entries.forEachIndexed { index, tab ->
-                    Tab(
-                        selected = tabIndex == index,
-                        onClick = { tabIndex = index },
-                        text = { Text(tab.label) },
+            val selectedShip = selectedShipId?.let { id ->
+                player.ships.firstOrNull { it.shipId.toString() == id }
+            }
+            if (selectedShip != null) {
+                BackHandler { selectedShipId = null }
+                ShipDetailScreen(selectedShip, onBack = { selectedShipId = null })
+            } else {
+                SecondaryTabRow(selectedTabIndex = tabIndex) {
+                    PlayerTab.entries.forEachIndexed { index, tab ->
+                        Tab(
+                            selected = tabIndex == index,
+                            onClick = { tabIndex = index },
+                            text = { Text(tab.label) },
+                        )
+                    }
+                }
+                when (PlayerTab.entries[tabIndex]) {
+                    PlayerTab.General -> GeneralTab(player)
+                    PlayerTab.Achievement -> AchievementTab(player.achievements)
+                    PlayerTab.Charts -> ChartsTab(player)
+                    PlayerTab.Ships -> ShipsTab(
+                        ships = player.ships,
+                        onShipClick = { selectedShipId = it.shipId.toString() },
                     )
                 }
-            }
-            when (PlayerTab.entries[tabIndex]) {
-                PlayerTab.General -> GeneralTab(player)
-                PlayerTab.Achievement -> AchievementTab(player.achievements)
-                PlayerTab.Charts -> ChartsTab(player)
-                PlayerTab.Ships -> ShipsTab(player.ships)
             }
         }
     }

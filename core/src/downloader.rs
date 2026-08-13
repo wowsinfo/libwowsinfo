@@ -8,8 +8,8 @@ use serde_json::{Map, Value};
 use crate::{
     models::{
         AccountListEntry, Achievement, ApiResponse, EncyclopediaAchievement, EncyclopediaShip,
-        PlayerInfo, PlayerView, PrEntry, RawEncyclopediaShip, RecentDay, RecentOverview,
-        ShipStatLine, ShipStats,
+        PlayerInfo, PlayerStatistics, PlayerView, PrEntry, RawEncyclopediaShip, RecentDay,
+        RecentOverview, ShipStatLine, ShipStats,
     },
     rating::{get_ap, get_colour, get_comment, get_overall_rating},
 };
@@ -368,7 +368,13 @@ pub fn assemble_player(
                 avg_frags: s.avg_frags,
                 rating: s.rating,
                 rating_colour: get_colour(Some(s.rating)).to_string(),
+                rating_comment: get_comment(s.rating),
                 ap: s.ap,
+                statistics: PlayerStatistics {
+                    battles: s.battles,
+                    pvp: s.pvp.clone(),
+                    ..Default::default()
+                },
             }
         })
         .collect();

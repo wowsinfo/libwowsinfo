@@ -1,15 +1,16 @@
 package com.wowsinfo.libwowsinfo.ui.player
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,69 +18,64 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.wowsinfo.libwowsinfo.ShipStatLine
-import com.wowsinfo.libwowsinfo.ui.SectionTitle
-import com.wowsinfo.libwowsinfo.ui.Stat
-import com.wowsinfo.libwowsinfo.ui.formatNumber
-import com.wowsinfo.libwowsinfo.ui.formatPercent
 import com.wowsinfo.libwowsinfo.ui.formatRating
 import com.wowsinfo.libwowsinfo.ui.parseRatingColor
 
-private val PremiumColor = Color(0xFFFF9800)
+val PremiumColor = Color(0xFFFF9800)
 
+/** Ship grid like `PlayerShipInfoPage` (icon + tier label, tap for detail). */
 @Composable
-fun ShipsTab(ships: List<ShipStatLine>) {
-    LazyColumn(
+fun ShipsTab(ships: List<ShipStatLine>, onShipClick: (ShipStatLine) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
         modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        contentPadding = PaddingValues(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item { SectionTitle("Ships (${ships.size})") }
         items(ships, key = { it.shipId.toString() }) { ship ->
-            ShipRow(ship)
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            ShipCell(ship, onClick = { onShipClick(ship) })
         }
     }
 }
 
+/** One ship cell: image, tier + name, rating. */
 @Composable
-private fun ShipRow(ship: ShipStatLine) {
+fun ShipCell(
+    ship: ShipStatLine,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+) {
     val ratingColor = remember(ship.ratingColour) { parseRatingColor(ship.ratingColour) }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(enabled = onClick != null) { onClick?.invoke() },
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         AsyncImage(
             model = ship.icon,
             contentDescription = null,
-            modifier = Modifier.size(width = 76.dp, height = 44.dp),
+            modifier = Modifier.fillMaxWidth().aspectRatio(1.7f),
         )
-        Column(
-            modifier = Modifier.weight(1f).padding(start = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                text = "T${ship.tier} ${ship.name}",
-                style = MaterialTheme.typography.titleSmall,
-                color = if (ship.premium) PremiumColor else Color.Unspecified,
-            )
-            Text(
-                "${ship.type.uppercase()} · ${ship.nation.replace('_', ' ').replaceFirstChar { it.uppercase() }}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Stat("Battles", formatNumber(ship.battles))
-                Stat("DMG", formatNumber(ship.avgDmg))
-                Stat("WR", formatPercent(ship.avgWinrate))
-                Stat("Frags", formatNumber(ship.avgFrags))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Stat("Rating", formatRating(ship.rating), color = ratingColor)
-                Stat("AP", formatNumber(ship.ap))
-            }
-        }
+        Text(
+            text = "T${ship.tier} ${ship.name}",
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = if (ship.premium) PremiumColor else Color.Unspecified,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = formatRating(ship.rating),
+            style = MaterialTheme.typography.labelSmall,
+            color = ratingColor,
+        )
     }
 }

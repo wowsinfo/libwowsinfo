@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
@@ -28,7 +29,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wowsinfo.libwowsinfo.PlayerView
 import com.wowsinfo.libwowsinfo.PvpStats
+import com.wowsinfo.libwowsinfo.ShipStatLine
 import com.wowsinfo.libwowsinfo.WeaponStats
+import com.wowsinfo.libwowsinfo.ui.SectionTitle
 import com.wowsinfo.libwowsinfo.ui.Stat
 import com.wowsinfo.libwowsinfo.ui.formatEpochDate
 import com.wowsinfo.libwowsinfo.ui.formatDecimal
@@ -64,17 +67,8 @@ fun GeneralTab(player: PlayerView) {
     ) {
         item { PlayerHeader(player) }
         item { ModeSelector(mode) { mode = it } }
-        if (stats != null && stats.battles > 0) {
-            item { StatsGrid(stats) }
-        } else {
-            item {
-                Text(
-                    "No battles in this mode",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        item { ModeStatsGrid(stats) }
+        item { BestShipsSection(player.ships) }
     }
 }
 
@@ -182,16 +176,34 @@ private fun ModeSelector(selected: StatMode, onSelect: (StatMode) -> Unit) {
 }
 
 @Composable
-private fun StatsGrid(stats: PvpStats) {
-    val battles = stats.battles
-    if (battles <= 0) return
-    val winRate = stats.wins.toDouble() / battles * 100.0
-    val avgDmg = stats.damageDealt.toDouble() / battles
-    val avgXp = stats.xp.toDouble() / battles
-    val deaths = (battles - stats.survivedBattles).coerceAtLeast(1)
-    val killDeath = stats.frags.toDouble() / deaths
-    val survivedRate = stats.survivedBattles.toDouble() / battles * 100.0
-    val potential = stats.artAgro + stats.torpedoAgro
+fun ModeStatsGrid(stats: PvpStats?) {
+    val battles = stats?.battles ?: 0L
+    val wins = stats?.wins ?: 0L
+    val damage = stats?.damageDealt ?: 0L
+    val xp = stats?.xp ?: 0L
+    val frags = stats?.frags ?: 0L
+    val survivedBattles = stats?.survivedBattles ?: 0L
+    val survivedWins = stats?.survivedWins ?: 0L
+    val planes = stats?.planesKilled ?: 0L
+    val spotted = stats?.shipsSpotted ?: 0L
+    val maxDamage = stats?.maxDamageDealt ?: 0L
+    val maxFrags = stats?.maxFragsBattle ?: 0L
+    val maxXp = stats?.maxXp ?: 0L
+    val draws = stats?.draws ?: 0L
+    val potential = (stats?.artAgro ?: 0L) + (stats?.torpedoAgro ?: 0L)
+    val capture = stats?.capturePoints ?: 0L
+    val teamCapture = stats?.teamCapturePoints ?: 0L
+    val maxPlanes = stats?.maxPlanesKilled ?: 0L
+    val maxSpotted = stats?.maxShipsSpotted ?: 0L
+    val maxTotalAgro = stats?.maxTotalAgro ?: 0L
+
+    val winRate = if (battles > 0) wins.toDouble() / battles * 100.0 else 0.0
+    val avgDmg = if (battles > 0) damage.toDouble() / battles else 0.0
+    val avgXp = if (battles > 0) xp.toDouble() / battles else 0.0
+    val deaths = (battles - survivedBattles).coerceAtLeast(1)
+    val killDeath = frags.toDouble() / deaths
+    val survivedRate = if (battles > 0) survivedBattles.toDouble() / battles * 100.0 else 0.0
+    val survivedWinsRate = if (battles > 0) survivedWins.toDouble() / battles * 100.0 else 0.0
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         StatRow(
@@ -205,34 +217,34 @@ private fun StatsGrid(stats: PvpStats) {
             StatCell("Survived", formatPercent(survivedRate)),
         )
         StatRow(
-            StatCell("Planes", formatNumber(stats.planesKilled)),
-            StatCell("Spotted", formatNumber(stats.shipsSpotted)),
-            StatCell("Max DMG", formatNumber(stats.maxDamageDealt)),
+            StatCell("Planes", formatNumber(planes)),
+            StatCell("Spotted", formatNumber(spotted)),
+            StatCell("Max DMG", formatNumber(maxDamage)),
         )
         StatRow(
-            StatCell("Max Frags", formatNumber(stats.maxFragsBattle)),
-            StatCell("Max XP", formatNumber(stats.maxXp)),
-            StatCell("Draws", formatNumber(stats.draws)),
+            StatCell("Max Frags", formatNumber(maxFrags)),
+            StatCell("Max XP", formatNumber(maxXp)),
+            StatCell("Draws", formatNumber(draws)),
         )
         StatRow(
             StatCell("Potential", formatNumber(potential)),
-            StatCell("Capture", formatNumber(stats.capturePoints)),
-            StatCell("Team cap", formatNumber(stats.teamCapturePoints)),
+            StatCell("Capture", formatNumber(capture)),
+            StatCell("Team cap", formatNumber(teamCapture)),
         )
         StatRow(
-            StatCell("Max planes", formatNumber(stats.maxPlanesKilled)),
-            StatCell("Max spotted", formatNumber(stats.maxShipsSpotted)),
-            StatCell("Max potential", formatNumber(stats.maxTotalAgro)),
+            StatCell("Max planes", formatNumber(maxPlanes)),
+            StatCell("Max spotted", formatNumber(maxSpotted)),
+            StatCell("Max potential", formatNumber(maxTotalAgro)),
         )
         StatRow(
-            StatCell("Main hit", weaponHitRate(stats.mainBattery)),
-            StatCell("Torp hit", weaponHitRate(stats.torpedoes)),
-            StatCell("Sec hit", weaponHitRate(stats.secondBattery)),
+            StatCell("Main hit", weaponHitRate(stats?.mainBattery)),
+            StatCell("Torp hit", weaponHitRate(stats?.torpedoes)),
+            StatCell("Sec hit", weaponHitRate(stats?.secondBattery)),
         )
         StatRow(
-            StatCell("Aircraft hit", weaponHitRate(stats.aircraft)),
-            StatCell("Ramming hit", weaponHitRate(stats.ramming)),
-            StatCell("Survived wins", formatPercent(survivedWinsRate(stats))),
+            StatCell("Aircraft hit", weaponHitRate(stats?.aircraft)),
+            StatCell("Ramming hit", weaponHitRate(stats?.ramming)),
+            StatCell("Survived wins", formatPercent(survivedWinsRate)),
         )
     }
 }
@@ -244,8 +256,24 @@ private fun weaponHitRate(weapon: WeaponStats?): String {
     return formatPercent(weapon.hits.toDouble() / weapon.shots * 100.0)
 }
 
-private fun survivedWinsRate(stats: PvpStats): Double =
-    if (stats.battles > 0) stats.survivedWins.toDouble() / stats.battles * 100.0 else 0.0
+@Composable
+private fun BestShipsSection(ships: List<ShipStatLine>) {
+    val best = remember(ships) {
+        ships.filter { it.battles > 0 }.sortedByDescending { it.rating }.take(5)
+    }
+    if (best.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SectionTitle("Best ships")
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            best.forEach { ship ->
+                ShipCell(ship, modifier = Modifier.width(120.dp))
+            }
+        }
+    }
+}
 
 private data class StatCell(val label: String, val value: String)
 
