@@ -1,4 +1,5 @@
-﻿use super::super::*;
+#![allow(deprecated)]
+
 use super::*;
 
 #[test]

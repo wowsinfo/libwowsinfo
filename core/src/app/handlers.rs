@@ -27,6 +27,10 @@ pub(super) fn init(model: &mut Model, config: Config) -> Command<Effect, Event> 
             .expect_string()
             .build()
             .then_send(|result| Event::GameVersionLoaded(http_outcome(result))),
+        HttpCap::get(api::player_online(model.server, &key))
+            .expect_string()
+            .build()
+            .then_send(|result| Event::OnlineLoaded(http_outcome(result))),
         render::render(),
     ])
 }
@@ -65,6 +69,25 @@ pub(super) fn search(model: &mut Model, query: String) -> Command<Effect, Event>
         .then_send(|result| Event::SearchLoaded(http_outcome(result)))
 }
 
+/// Clan search: `/wows/clans/list/`.
+pub(super) fn search_clan(model: &mut Model, query: String) -> Command<Effect, Event> {
+    model.clan_search_results.clear();
+    if query.trim().is_empty() {
+        return render::render();
+    }
+    let Some(config) = model.config.clone() else {
+        return render::render();
+    };
+    let key = api_key(&config);
+    if key.is_empty() {
+        return render::render();
+    }
+    HttpCap::get(api::clan_search(model.server, &key, &query))
+        .expect_string()
+        .build()
+        .then_send(|result| Event::ClanSearchLoaded(http_outcome(result)))
+}
+
 pub(super) fn select(model: &mut Model, account_id: u64) -> Command<Effect, Event> {
     model.phase = Phase::LoadingPlayer;
     model.pending_account_id = Some(account_id);
@@ -72,7 +95,11 @@ pub(super) fn select(model: &mut Model, account_id: u64) -> Command<Effect, Even
     model.pending_ships = None;
     model.achievements.clear();
     model.clan_tag.clear();
+    model.clan_id = None;
+    model.clan = None;
     model.recent = None;
+    model.rank = None;
+    model.rank_ships.clear();
 
     let Some(config) = model.config.clone() else {
         model.phase = Phase::Error("App not initialised".to_string());
@@ -106,6 +133,18 @@ fn player_commands(model: &mut Model, key: &str, account_id: u64) -> Vec<Command
                 .then_send(|result| Event::WarshipLoaded(http_outcome(result))),
         );
     }
+    commands.push(
+        HttpCap::get(api::rank_info(model.server, key, account_id))
+            .expect_string()
+            .build()
+            .then_send(|result| Event::RankLoaded(http_outcome(result))),
+    );
+    commands.push(
+        HttpCap::get(api::rank_ship_info(model.server, key, account_id))
+            .expect_string()
+            .build()
+            .then_send(|result| Event::RankShipsLoaded(http_outcome(result))),
+    );
     commands.push(
         HttpCap::get(api::player_achievement(model.server, key, account_id))
             .expect_string()

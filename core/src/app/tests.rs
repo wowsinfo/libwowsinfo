@@ -1,8 +1,9 @@
-﻿use super::*;
+#![allow(deprecated)]
+
+use super::*;
 use crux_core::testing::AppTester;
 use crux_http::HttpResponse;
 use crux_http::protocol::HttpResult;
-use crux_kv::{KeyValueResponse, KeyValueResult};
 
 fn config() -> Config {
     Config {
@@ -14,14 +15,6 @@ fn config() -> Config {
 
 fn http_ok(body: serde_json::Value) -> HttpResult {
     HttpResult::Ok(HttpResponse::ok().json(&body).build())
-}
-
-fn kv_ok(value: &str) -> KeyValueResult {
-    KeyValueResult::Ok {
-        response: KeyValueResponse::Get {
-            value: value.as_bytes().to_vec().into(),
-        },
-    }
 }
 
 fn resolve_http_matching(
@@ -87,7 +80,7 @@ fn init_requests_caches_version_and_render() {
         .effects()
         .filter(|e| matches!(e, Effect::Render(_)))
         .count();
-    assert_eq!(http, 1);
+    assert_eq!(http, 2, "game version + players online");
     assert_eq!(kv, 5);
     assert_eq!(renders, 1);
 }
@@ -109,6 +102,21 @@ fn init_loads_cached_pr_from_kv() {
 
     assert!(model.pr.len() > 10, "local PR fallback should be loaded");
     assert_eq!(app.view(&model).phase, Phase::Idle);
+}
+
+#[test]
+fn init_loads_players_online() {
+    let app = AppTester::<App>::default();
+    let mut model = Model::default();
+    let update = app.update(Event::Init(config()), &mut model);
+    let event = resolve_http_matching(
+        &app,
+        update,
+        "servers/info",
+        serde_json::json!({"status": "ok", "data": {"wows": [{"players_online": 4321}]}}),
+    );
+    let _ = app.update(event, &mut model);
+    assert_eq!(app.view(&model).online, 4321);
 }
 
 

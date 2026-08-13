@@ -25,11 +25,12 @@ type KeyValueCap = crux_kv::KeyValue<Effect, Event>;
 type TimeCap = crux_time::Time<Effect, Event>;
 
 use effects::{
-    on_achievements_loaded, on_achievements_wiki_loaded, on_clan_loaded, on_game_version_loaded,
-    on_kv_loaded, on_player_loaded, on_pr_loaded, on_recent_loaded, on_search_loaded,
-    on_ships_loaded, on_warship_loaded,
+    on_achievements_loaded, on_achievements_wiki_loaded, on_clan_info_loaded, on_clan_loaded,
+    on_clan_search_loaded, on_game_version_loaded, on_kv_loaded, on_online_loaded,
+    on_player_loaded, on_pr_loaded, on_rank_loaded, on_rank_ships_loaded, on_recent_loaded,
+    on_search_loaded, on_ships_loaded, on_warship_loaded,
 };
-use handlers::{init, refresh, search, select, set_server};
+use handlers::{init, refresh, search, search_clan, select, set_server};
 
 /// Startup configuration supplied by the shell.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Facet, PartialEq)]
@@ -76,6 +77,10 @@ pub enum Event {
         account_id: u64,
     },
     Refresh,
+    /// Search clans by name/tag (`/wows/clans/list/`).
+    SearchClan {
+        query: String,
+    },
     /// Persisted the server preference.
     ServerSaved,
     /// Response to `Time::now`.
@@ -89,7 +94,16 @@ pub enum Event {
     AchievementsLoaded(HttpOutcome),
     AchievementsWikiLoaded(HttpOutcome),
     ClanLoaded(HttpOutcome),
+    /// Full clan info (`/wows/clans/info/`), fetched after `ClanLoaded`.
+    ClanInfoLoaded(HttpOutcome),
+    ClanSearchLoaded(HttpOutcome),
     RecentLoaded(HttpOutcome),
+    /// Ranked seasons (`/wows/seasons/accountinfo/`).
+    RankLoaded(HttpOutcome),
+    /// Ranked ship stats (`/wows/seasons/shipstats/`).
+    RankShipsLoaded(HttpOutcome),
+    /// Players online (`/wgn/servers/info/`).
+    OnlineLoaded(HttpOutcome),
     KvLoaded {
         key: String,
         value: KvOutcome,
@@ -114,6 +128,11 @@ pub struct ViewModel {
     pub search_results: Vec<SearchResult>,
     #[serde(default)]
     pub player: Option<models::PlayerView>,
+    #[serde(default)]
+    pub clan_search_results: Vec<models::ClanSearchResult>,
+    /// Players online across the game; -1 when the request failed.
+    #[serde(default)]
+    pub online: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Facet, PartialEq)]
@@ -158,6 +177,12 @@ pub struct Model {
     achievements_wiki: HashMap<String, models::EncyclopediaAchievement>,
     clan_tag: String,
     recent: Option<models::RecentOverview>,
+    rank: Option<models::RankPlayerInfo>,
+    rank_ships: Vec<models::RankShipStat>,
+    clan: Option<models::ClanInfo>,
+    clan_id: Option<u64>,
+    clan_search_results: Vec<models::ClanSearchResult>,
+    online: i64,
     downloading_achievements: bool,
     /// True while the paginated ship encyclopedia download is in progress.
     downloading_warship: bool,
@@ -180,6 +205,7 @@ impl AppTrait for App {
             Event::SearchPlayer { query } => search(model, query),
             Event::SelectPlayer { account_id } => select(model, account_id),
             Event::Refresh => refresh(model),
+            Event::SearchClan { query } => search_clan(model, query),
             Event::ServerSaved => render::render(),
             Event::NowLoaded(_) => render::render(),
             Event::GameVersionLoaded(outcome) => on_game_version_loaded(model, outcome),
@@ -191,7 +217,12 @@ impl AppTrait for App {
             Event::AchievementsLoaded(outcome) => on_achievements_loaded(model, outcome),
             Event::AchievementsWikiLoaded(outcome) => on_achievements_wiki_loaded(model, outcome),
             Event::ClanLoaded(outcome) => on_clan_loaded(model, outcome),
+            Event::ClanInfoLoaded(outcome) => on_clan_info_loaded(model, outcome),
+            Event::ClanSearchLoaded(outcome) => on_clan_search_loaded(model, outcome),
             Event::RecentLoaded(outcome) => on_recent_loaded(model, outcome),
+            Event::RankLoaded(outcome) => on_rank_loaded(model, outcome),
+            Event::RankShipsLoaded(outcome) => on_rank_ships_loaded(model, outcome),
+            Event::OnlineLoaded(outcome) => on_online_loaded(model, outcome),
             Event::KvLoaded { key, value } => on_kv_loaded(model, key, value),
         }
     }
@@ -208,6 +239,8 @@ impl AppTrait for App {
                 })
                 .collect(),
             player: model.selected.clone(),
+            clan_search_results: model.clan_search_results.clone(),
+            online: model.online,
         }
     }
 }

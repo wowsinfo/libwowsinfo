@@ -1,4 +1,6 @@
-﻿use super::super::*;
+#![allow(deprecated)]
+
+use super::super::*;
 use super::*;
 
 #[test]
@@ -10,7 +12,7 @@ fn select_player_assembles_stats() {
 
     let mut update = app.update(Event::SelectPlayer { account_id: 42 }, &mut model);
     assert!(matches!(model.phase, Phase::LoadingPlayer));
-    assert_eq!(update.effects.len(), 7, "player + ships + warship + achievements + clan + recent + render");
+    assert_eq!(update.effects.len(), 9, "player + ships + warship + rank + rank ships + achievements + clan + recent + render");
 
     let player_body = serde_json::json!({
         "status": "ok",
@@ -58,7 +60,38 @@ fn select_player_assembles_stats() {
     });
     let clan_body = serde_json::json!({
         "status": "ok",
-        "data": {"42": {"clan": {"tag": "ABC"}}}
+        "data": {"42": {"clan": {"id": 99, "tag": "ABC"}}}
+    });
+    let clan_info_body = serde_json::json!({
+        "status": "ok",
+        "data": {"99": {
+            "clan_id": 99,
+            "tag": "ABC",
+            "name": "Alpha",
+            "members_count": 1,
+            "members": {
+                "7": {"account_name": "Bob", "role": "commander", "joined_at": 100}
+            }
+        }}
+    });
+    let rank_body = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {
+            "account_id": 42,
+            "seasons": {"24": {
+                "rank_info": {"max_rank": 23, "start_rank": 15, "stars": 5, "rank": 23, "stage": 4},
+                "rank_solo": {"battles": 50, "wins": 30}
+            }}
+        }}
+    });
+    let rank_ships_body = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {
+            "3542005744": {
+                "ship_id": 3542005744u64,
+                "seasons": {"24": {"rank_solo": {"battles": 10, "wins": 6}}}
+            }
+        }}
     });
     let recent_body = serde_json::json!({
         "status": "ok",
@@ -87,6 +120,12 @@ fn select_player_assembles_stats() {
             achievements_body.clone()
         } else if url.contains("/wows/clans/accountinfo/") {
             clan_body.clone()
+        } else if url.contains("/wows/clans/info/") {
+            clan_info_body.clone()
+        } else if url.contains("/wows/seasons/accountinfo/") {
+            rank_body.clone()
+        } else if url.contains("/wows/seasons/shipstats/") {
+            rank_ships_body.clone()
         } else if url.contains("/wows/account/statsbydate/") {
             recent_body.clone()
         } else {
@@ -96,7 +135,20 @@ fn select_player_assembles_stats() {
         events.push(update.events.into_iter().next().expect("one event"));
     }
     for event in events {
-        let _ = app.update(event, &mut model);
+        let mut update = app.update(event, &mut model);
+        // `ClanLoaded` chains a `clans/info` request once the clan id is known.
+        for request in update.effects_mut().filter_map(|effect| match effect {
+            Effect::Http(request) if request.operation.url.contains("clans/info/") => Some(request),
+            _ => None,
+        }) {
+            let update = app
+                .resolve(request, http_ok(clan_info_body.clone()))
+                .expect("resolve clan info");
+            let _ = app.update(
+                update.events.into_iter().next().expect("one event"),
+                &mut model,
+            );
+        }
     }
 
     assert!(matches!(model.phase, Phase::Player));
@@ -109,6 +161,17 @@ fn select_player_assembles_stats() {
         assert_eq!(player.statistics.pvp.as_ref().map(|p| p.battles), Some(100));
         assert_eq!(player.achievements.len(), 2);
         assert_eq!(player.clan_tag, "ABC");
+        let clan = player.clan.as_ref().expect("clan info");
+        assert_eq!(clan.name, "Alpha");
+        assert_eq!(clan.members.len(), 1);
+        let rank = player.rank.as_ref().expect("rank info");
+        assert!(rank.seasons.contains_key("24"));
+        assert_eq!(
+            rank.seasons["24"].rank_solo.as_ref().map(|p| p.battles),
+            Some(50)
+        );
+        assert_eq!(player.rank_ships.len(), 1);
+        assert_eq!(player.rank_ships[0].ship_id, 3542005744u64);
         assert_eq!(player.created_at, None);
         let recent = player.recent.expect("recent overview");
         assert_eq!(recent.total_battles, 4);
@@ -122,7 +185,7 @@ fn warship_download_paginates_until_last_page() {
     model.pr = downloader::local_pr();
 
     let mut update = app.update(Event::SelectPlayer { account_id: 42 }, &mut model);
-    assert_eq!(update.effects.len(), 7, "player + ships + warship + achievements + clan + recent + render");
+    assert_eq!(update.effects.len(), 9, "player + ships + warship + rank + rank ships + achievements + clan + recent + render");
 
     let player_body = serde_json::json!({
         "status": "ok",
@@ -269,8 +332,8 @@ fn refresh_reloads_pr_and_reloads_player() {
     model.pending_account_id = Some(42);
 
     let update = app.update(Event::Refresh, &mut model);
-    // PR + time + player + ships + render
-    assert_eq!(update.effects.len(), 9);
+    // PR + time + player + ships + rank + rank ships + achievements + clan + recent + render
+    assert_eq!(update.effects.len(), 11);
     assert!(update.effects.iter().any(|e| matches!(e, Effect::Time(_))));
     assert!(update.effects.iter().any(|e| matches!(e, Effect::Http(_))));
 }

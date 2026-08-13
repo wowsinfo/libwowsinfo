@@ -8,8 +8,8 @@ use serde_json::{Map, Value};
 use crate::{
     models::{
         AccountListEntry, Achievement, ApiResponse, EncyclopediaAchievement, EncyclopediaShip,
-        PlayerInfo, PlayerStatistics, PlayerView, PrEntry, RawEncyclopediaShip, RecentDay,
-        RecentOverview, ShipStatLine, ShipStats,
+        ClanInfo, PlayerInfo, PlayerStatistics, PlayerView, PrEntry, RankPlayerInfo, RankShipStat,
+        RawEncyclopediaShip, RecentDay, RecentOverview, ShipStatLine, ShipStats,
     },
     rating::{get_ap, get_colour, get_comment, get_overall_rating},
 };
@@ -81,7 +81,7 @@ pub fn parse_pr(json: &Value) -> HashMap<u64, PrEntry> {
 #[must_use]
 pub fn local_pr() -> HashMap<u64, PrEntry> {
     let json: Value =
-        serde_json::from_str(include_str!("../assets/personal_rating.json")).unwrap_or_default();
+        serde_json::from_str(include_str!("../../assets/personal_rating.json")).unwrap_or_default();
     parse_pr(&json)
 }
 
@@ -177,6 +177,19 @@ pub fn parse_clan_tag(json: &Value, account_id: u64) -> String {
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string()
+}
+
+/// Players online for the game, matching the app's
+/// `data.wows.0.players_online` guard (first server entry, -1 when missing).
+#[must_use]
+pub fn parse_online_count(json: &Value) -> i64 {
+    let empty = Value::Object(Map::new());
+    let wows = guard(json, "data.wows", &empty);
+    wows.as_array()
+        .and_then(|servers| servers.first())
+        .and_then(|server| server.get("players_online"))
+        .and_then(Value::as_i64)
+        .unwrap_or(-1)
 }
 
 /// Last 10 days (yesterday back to ten days ago) as `YYYYMMDD` joined by
@@ -332,6 +345,9 @@ pub fn assemble_player(
     clan_tag: String,
     achievements: Vec<Achievement>,
     recent: Option<RecentOverview>,
+    rank: Option<RankPlayerInfo>,
+    rank_ships: Vec<RankShipStat>,
+    clan: Option<ClanInfo>,
 ) -> PlayerView {
     let rating = get_overall_rating(&mut ships, pr);
     let total_battles: i64 = ships
@@ -413,8 +429,19 @@ pub fn assemble_player(
         leveling_tier: player.leveling_tier,
         clan_tag,
         recent,
+        rank,
+        rank_ships,
+        clan,
     }
 }
+
+mod clan;
+mod rank;
+mod wiki;
+
+pub use clan::{parse_clan_id, parse_clan_info, parse_clan_search};
+pub use rank::{parse_rank_info, parse_rank_ship_stats};
+pub use wiki::{parse_collection_cards, parse_collections, parse_commander_skills, parse_consumables};
 
 /// `checkVersionUpdate` in `Downloader.ts`: strings simply differ.
 #[must_use]

@@ -129,12 +129,15 @@ fn assemble_player_builds_view() {
         },
         ships,
             &pr,
-            &HashMap::new(),
-            crate::data::Server::Asia,
-            String::new(),
-            Vec::new(),
-            None,
-        );
+        &HashMap::new(),
+        crate::data::Server::Asia,
+        String::new(),
+        Vec::new(),
+        None,
+        None,
+        Vec::new(),
+        None,
+    );
     assert_eq!(view.nickname, "HenryQuan");
     assert_eq!(view.server, "asia");
     assert_eq!(view.ships.len(), 1);
@@ -252,4 +255,210 @@ fn statistics_parses_all_modes() {
     assert_eq!(stats.div3.as_ref().map(|p| p.battles), Some(2));
     assert_eq!(stats.pve.as_ref().map(|p| p.battles), Some(7));
     assert_eq!(stats.rank_solo.as_ref().map(|p| p.battles), Some(4));
+}
+
+#[test]
+fn rank_info_parses_seasons() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {
+            "account_id": 42,
+            "seasons": {
+                "24": {
+                    "rank_info": {"max_rank": 23, "start_rank": 15, "stars": 5, "rank": 23, "stage": 4},
+                    "rank_solo": {"battles": 100, "wins": 60, "damage_dealt": 5_000_000, "frags": 80},
+                    "rank_div2": {"battles": 10, "wins": 5}
+                },
+                "23": {}
+            }
+        }}
+    });
+    let rank = parse_rank_info(&json, 42).expect("rank info");
+    assert_eq!(rank.account_id, 42);
+    let season = rank.seasons.get("24").expect("season 24");
+    let info = season.rank_info.as_ref().expect("rank info");
+    assert_eq!(info.max_rank, 23);
+    assert_eq!(info.stars, 5);
+    assert_eq!(info.stage, 4);
+    let solo = season.rank_solo.as_ref().expect("rank solo");
+    assert_eq!(solo.battles, 100);
+    assert_eq!(solo.wins, 60);
+    assert!(season.rank_div2.is_some());
+    assert!(season.rank_div3.is_none());
+    assert!(rank
+        .seasons
+        .get("23")
+        .is_some_and(|s| s.rank_solo.is_none()));
+    assert!(parse_rank_info(&json, 1).is_none());
+}
+
+#[test]
+fn rank_ship_stats_parse_map_and_list() {
+    let map_json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {
+            "3542005744": {
+                "ship_id": 3542005744u64,
+                "seasons": {"24": {"rank_solo": {"battles": 50, "wins": 30}}}
+            }
+        }}
+    });
+    let list_json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": [
+            {"ship_id": 3542005744u64, "seasons": {"24": {"rank_solo": {"battles": 50}}}}
+        ]}
+    });
+    let from_map = parse_rank_ship_stats(&map_json, 42);
+    let from_list = parse_rank_ship_stats(&list_json, 42);
+    assert_eq!(from_map.len(), 1);
+    assert_eq!(from_map[0].ship_id, 3542005744u64);
+    assert_eq!(
+        from_map[0]
+            .seasons
+            .get("24")
+            .and_then(|s| s.rank_solo.as_ref())
+            .map(|p| p.battles),
+        Some(50)
+    );
+    assert_eq!(from_list.len(), 1);
+    assert!(parse_rank_ship_stats(&map_json, 1).is_empty());
+}
+
+#[test]
+fn clan_id_and_tag_parse_from_accountinfo() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {"clan": {"id": 99, "tag": "ABC"}}}
+    });
+    assert_eq!(parse_clan_id(&json, 42), Some(99));
+    assert_eq!(parse_clan_tag(&json, 42), "ABC");
+    assert_eq!(parse_clan_id(&json, 1), None);
+}
+
+#[test]
+fn clan_info_parses_members() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": {"99": {
+            "clan_id": 99,
+            "tag": "ABC",
+            "name": "Alpha",
+            "description": "desc",
+            "members_count": 2,
+            "created_at": 123,
+            "updated_at": 456,
+            "leader_id": 1,
+            "leader_name": "Lead",
+            "creator_id": 1,
+            "creator_name": "Lead",
+            "old_name": "",
+            "old_tag": "",
+            "renamed_at": 0,
+            "is_clan_disbanded": false,
+            "members": {
+                "1": {"account_name": "Lead", "role": "commander", "joined_at": 100},
+                "2": {"account_name": "Dude", "role": "executive_officer", "joined_at": 200}
+            }
+        }}
+    });
+    let clan = parse_clan_info(&json, 99).expect("clan info");
+    assert_eq!(clan.tag, "ABC");
+    assert_eq!(clan.name, "Alpha");
+    assert_eq!(clan.members_count, 2);
+    assert_eq!(clan.members.len(), 2);
+    let leader = clan
+        .members
+        .iter()
+        .find(|m| m.account_id == 1)
+        .expect("leader");
+    assert_eq!(leader.role, "commander");
+    assert_eq!(leader.account_name, "Lead");
+    assert!(parse_clan_info(&json, 1).is_none());
+}
+
+#[test]
+fn clan_search_parses_results() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": [{"clan_id": 1, "tag": "ABC"}, {"clan_id": 2, "tag": "XYZ"}]
+    });
+    let results = parse_clan_search(&json);
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].clan_id, 1);
+    assert_eq!(results[1].tag, "XYZ");
+    assert!(parse_clan_search(&serde_json::json!({"data": {}})).is_empty());
+}
+
+#[test]
+fn online_count_reads_first_server() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": {"wows": [{"players_online": 12345}, {"players_online": 6789}]}
+    });
+    assert_eq!(parse_online_count(&json), 12345);
+    assert_eq!(
+        parse_online_count(&serde_json::json!({"data": {"wows": []}})),
+        -1
+    );
+    assert_eq!(parse_online_count(&serde_json::json!({"data": {}})), -1);
+}
+
+#[test]
+fn wiki_pages_parse_and_key_by_id() {
+    let collections = serde_json::json!({
+        "status": "ok",
+        "data": {"1": {"collection_id": 1, "name": "C1", "description": "d", "image": "i"}}
+    });
+    let cards = serde_json::json!({
+        "status": "ok",
+        "data": {"7": {
+            "card_id": 7,
+            "collection_id": 1,
+            "name": "card",
+            "description": "d",
+            "images": {"small": "s"}
+        }}
+    });
+    let consumables = serde_json::json!({
+        "status": "ok",
+        "data": {"3": {
+            "consumable_id": 3,
+            "name": "Repair",
+            "description": "fix",
+            "image": "i",
+            "type": "repair",
+            "price_credit": 100,
+            "price_gold": 0,
+            "profile": {"p1": {"description": "heals"}}
+        }}
+    });
+    let skills = serde_json::json!({
+        "status": "ok",
+        "data": {"5": {
+            "name": "Expert",
+            "icon": "ic",
+            "tier": 3,
+            "type_id": 1,
+            "type_name": "skill",
+            "perks": [{"perk_id": 9, "description": "bonus"}]
+        }}
+    });
+    let cols = parse_collections(&collections);
+    assert_eq!(cols.get(&1).map(|c| c.name.as_str()), Some("C1"));
+    let card_list = parse_collection_cards(&cards);
+    assert_eq!(card_list.get(&7).map(|c| c.collection_id), Some(1));
+    assert_eq!(card_list.get(&7).map(|c| c.image.as_str()), Some("s"));
+    let cons = parse_consumables(&consumables);
+    let c = cons.get(&3).expect("consumable");
+    assert_eq!(c.name, "Repair");
+    assert_eq!(c.price_credit, 100);
+    assert_eq!(c.profile.len(), 1);
+    assert_eq!(c.profile[0].description, "heals");
+    let sk = parse_commander_skills(&skills);
+    let s = sk.get(&5).expect("skill");
+    assert_eq!(s.skill_id, 5);
+    assert_eq!(s.tier, 3);
+    assert_eq!(s.perks.len(), 1);
+    assert_eq!(s.perks[0].perk_id, 9);
 }

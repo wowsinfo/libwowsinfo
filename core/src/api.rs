@@ -114,7 +114,7 @@ pub fn stats_by_date(server: Server, api_key: &str, account_id: u64, dates: &str
 #[must_use]
 pub fn player_clan(server: Server, api_key: &str, account_id: u64) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/clans/accountinfo/?application_id={api_key}&extra=clan&fields=clan.tag&account_id={account_id}",
+        "https://api.worldofwarships.{}/wows/clans/accountinfo/?application_id={api_key}&extra=clan&fields=clan.id%2Cclan.tag&account_id={account_id}",
         server.domain()
     )
 }
@@ -124,6 +124,15 @@ pub fn player_clan(server: Server, api_key: &str, account_id: u64) -> String {
 pub fn clan_search(server: Server, api_key: &str, query: &str) -> String {
     format!(
         "https://api.worldofwarships.{}/wows/clans/list/?application_id={api_key}&fields=clan_id%2Ctag&search={query}",
+        server.domain()
+    )
+}
+
+/// Full clan info with members: `/wows/clans/info/`.
+#[must_use]
+pub fn clan_info(server: Server, api_key: &str, clan_id: u64) -> String {
+    format!(
+        "https://api.worldofwarships.{}/wows/clans/info/?application_id={api_key}&extra=members&fields=-members_ids&clan_id={clan_id}",
         server.domain()
     )
 }
@@ -142,6 +151,42 @@ pub fn rank_info(server: Server, api_key: &str, account_id: u64) -> String {
 pub fn rank_ship_info(server: Server, api_key: &str, account_id: u64) -> String {
     format!(
         "https://api.worldofwarships.{}/wows/seasons/shipstats/?application_id={api_key}&account_id={account_id}",
+        server.domain()
+    )
+}
+
+/// Wiki collections: `/wows/encyclopedia/collections/`.
+#[must_use]
+pub fn collections(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
+    format!(
+        "https://api.worldofwarships.{}/wows/encyclopedia/collections/?application_id={api_key}&fields=-card_cost%2C-tag&page_no={page_no}&language={language}",
+        server.domain()
+    )
+}
+
+/// Wiki collection cards: `/wows/encyclopedia/collectioncards/`.
+#[must_use]
+pub fn collection_cards(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
+    format!(
+        "https://api.worldofwarships.{}/wows/encyclopedia/collectioncards/?application_id={api_key}&fields=images.small%2Ccard_id%2Ccollection_id%2Cdescription%2Cname&page_no={page_no}&language={language}",
+        server.domain()
+    )
+}
+
+/// Wiki consumables: `/wows/encyclopedia/consumables/`.
+#[must_use]
+pub fn consumables(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
+    format!(
+        "https://api.worldofwarships.{}/wows/encyclopedia/consumables/?application_id={api_key}&fields=type%2Cconsumable_id%2Cdescription%2Cname%2Cimage%2Cprice_credit%2Cprice_gold%2Cprofile.description&page_no={page_no}&language={language}",
+        server.domain()
+    )
+}
+
+/// Commander skills: `/wows/encyclopedia/crewskills/`.
+#[must_use]
+pub fn commander_skills(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
+    format!(
+        "https://api.worldofwarships.{}/wows/encyclopedia/crewskills/?application_id={api_key}&fields=icon%2Cname%2Ctier%2Cperks.description&page_no={page_no}&language={language}",
         server.domain()
     )
 }
@@ -189,5 +234,19 @@ mod tests {
     fn rank_and_clan_endpoints_match_templates() {
         assert!(rank_info(Server::Ru, "K", 1).contains("/wows/seasons/accountinfo/"));
         assert!(player_clan(Server::Ru, "K", 1).contains("/wows/clans/accountinfo/"));
+        assert!(player_clan(Server::Ru, "K", 1).contains("clan.id"));
+        assert!(clan_info(Server::Eu, "K", 5).contains("/wows/clans/info/"));
+        assert!(clan_info(Server::Eu, "K", 5).contains("clan_id=5"));
+    }
+
+    #[test]
+    fn migrated_wiki_endpoints_match_templates() {
+        assert!(collections(Server::Eu, "K", 1, "en").contains("/wows/encyclopedia/collections/"));
+        assert!(collection_cards(Server::Eu, "K", 1, "en")
+            .contains("/wows/encyclopedia/collectioncards/"));
+        assert!(consumables(Server::Eu, "K", 1, "en")
+            .contains("/wows/encyclopedia/consumables/"));
+        assert!(commander_skills(Server::Eu, "K", 1, "en")
+            .contains("/wows/encyclopedia/crewskills/"));
     }
 }
