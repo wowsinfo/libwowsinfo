@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wowsinfo.libwowsinfo.PlayerView
 import com.wowsinfo.libwowsinfo.PvpStats
+import com.wowsinfo.libwowsinfo.WeaponStats
 import com.wowsinfo.libwowsinfo.ui.Stat
 import com.wowsinfo.libwowsinfo.ui.formatEpochDate
 import com.wowsinfo.libwowsinfo.ui.formatDecimal
@@ -104,7 +105,7 @@ private fun PlayerHeader(player: PlayerView) {
             Stat("Server", player.server.uppercase(), modifier = Modifier.weight(1f))
             Stat(
                 "Level",
-                player.levelingTier?.toString() ?: "Unknown",
+                player.levelingTier?.let { "Lv $it" } ?: "Unknown",
                 modifier = Modifier.weight(1f),
             )
         }
@@ -116,6 +117,21 @@ private fun PlayerHeader(player: PlayerView) {
             Stat(
                 "Last battle",
                 formatEpochDate(player.lastBattleTime),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround,
+        ) {
+            Stat(
+                "Total battles",
+                formatNumber(player.statistics.battles),
+                modifier = Modifier.weight(1f),
+            )
+            Stat(
+                "Distance",
+                "${formatNumber(player.statistics.distance)} km",
                 modifier = Modifier.weight(1f),
             )
         }
@@ -208,8 +224,28 @@ private fun StatsGrid(stats: PvpStats) {
             StatCell("Max spotted", formatNumber(stats.maxShipsSpotted)),
             StatCell("Max potential", formatNumber(stats.maxTotalAgro)),
         )
+        StatRow(
+            StatCell("Main hit", weaponHitRate(stats.mainBattery)),
+            StatCell("Torp hit", weaponHitRate(stats.torpedoes)),
+            StatCell("Sec hit", weaponHitRate(stats.secondBattery)),
+        )
+        StatRow(
+            StatCell("Aircraft hit", weaponHitRate(stats.aircraft)),
+            StatCell("Ramming hit", weaponHitRate(stats.ramming)),
+            StatCell("Survived wins", formatPercent(survivedWinsRate(stats))),
+        )
     }
 }
+
+private fun weaponHitRate(weapon: WeaponStats?): String {
+    if (weapon == null || weapon.shots <= 0) {
+        return "—"
+    }
+    return formatPercent(weapon.hits.toDouble() / weapon.shots * 100.0)
+}
+
+private fun survivedWinsRate(stats: PvpStats): Double =
+    if (stats.battles > 0) stats.survivedWins.toDouble() / stats.battles * 100.0 else 0.0
 
 private data class StatCell(val label: String, val value: String)
 

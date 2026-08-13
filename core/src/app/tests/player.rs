@@ -10,7 +10,7 @@ fn select_player_assembles_stats() {
 
     let mut update = app.update(Event::SelectPlayer { account_id: 42 }, &mut model);
     assert!(matches!(model.phase, Phase::LoadingPlayer));
-    assert_eq!(update.effects.len(), 6, "player + ships + warship + achievements + clan + render");
+    assert_eq!(update.effects.len(), 7, "player + ships + warship + achievements + clan + recent + render");
 
     let player_body = serde_json::json!({
         "status": "ok",
@@ -60,6 +60,13 @@ fn select_player_assembles_stats() {
         "status": "ok",
         "data": {"42": {"clan": {"tag": "ABC"}}}
     });
+    let recent_body = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {
+            "20260801": {"pvp": {"battles": 10, "wins": 5, "damage_dealt": 100000}},
+            "20260802": {"pvp": {"battles": 14, "wins": 7, "damage_dealt": 150000}}
+        }}
+    });
 
     // Resolve every pending HTTP request against its endpoint.
     let requests: Vec<&mut crux_core::Request<crux_http::HttpRequest>> = update
@@ -80,6 +87,8 @@ fn select_player_assembles_stats() {
             achievements_body.clone()
         } else if url.contains("/wows/clans/accountinfo/") {
             clan_body.clone()
+        } else if url.contains("/wows/account/statsbydate/") {
+            recent_body.clone()
         } else {
             warship_body.clone()
         };
@@ -101,6 +110,9 @@ fn select_player_assembles_stats() {
         assert_eq!(player.achievements.len(), 2);
         assert_eq!(player.clan_tag, "ABC");
         assert_eq!(player.created_at, None);
+        let recent = player.recent.expect("recent overview");
+        assert_eq!(recent.total_battles, 4);
+        assert_eq!(recent.days.len(), 1);
 }
 #[test]
 fn warship_download_paginates_until_last_page() {
@@ -110,7 +122,7 @@ fn warship_download_paginates_until_last_page() {
     model.pr = downloader::local_pr();
 
     let mut update = app.update(Event::SelectPlayer { account_id: 42 }, &mut model);
-    assert_eq!(update.effects.len(), 6, "player + ships + warship + achievements + clan + render");
+    assert_eq!(update.effects.len(), 7, "player + ships + warship + achievements + clan + recent + render");
 
     let player_body = serde_json::json!({
         "status": "ok",
@@ -169,6 +181,13 @@ fn warship_download_paginates_until_last_page() {
         "status": "ok",
         "data": {"42": {"clan": {"tag": "ABC"}}}
     });
+    let recent_body = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {
+            "20260801": {"pvp": {"battles": 10, "wins": 5, "damage_dealt": 100000}},
+            "20260802": {"pvp": {"battles": 14, "wins": 7, "damage_dealt": 150000}}
+        }}
+    });
 
     let requests: Vec<&mut crux_core::Request<crux_http::HttpRequest>> = update
         .effects_mut()
@@ -191,6 +210,8 @@ fn warship_download_paginates_until_last_page() {
                 achievements_body.clone()
             } else if url.contains("/wows/clans/accountinfo/") {
                 clan_body.clone()
+            } else if url.contains("/wows/account/statsbydate/") {
+                recent_body.clone()
             } else {
                 ships_body.clone()
             };
@@ -249,7 +270,7 @@ fn refresh_reloads_pr_and_reloads_player() {
 
     let update = app.update(Event::Refresh, &mut model);
     // PR + time + player + ships + render
-    assert_eq!(update.effects.len(), 8);
+    assert_eq!(update.effects.len(), 9);
     assert!(update.effects.iter().any(|e| matches!(e, Effect::Time(_))));
     assert!(update.effects.iter().any(|e| matches!(e, Effect::Http(_))));
 }

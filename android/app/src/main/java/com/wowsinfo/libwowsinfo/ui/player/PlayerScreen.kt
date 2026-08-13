@@ -74,7 +74,7 @@ fun PlayerScreen(
             when (PlayerTab.entries[tabIndex]) {
                 PlayerTab.General -> GeneralTab(player)
                 PlayerTab.Achievement -> AchievementTab(player.achievements)
-                PlayerTab.Charts -> ChartsTab(player.ships)
+                PlayerTab.Charts -> ChartsTab(player)
                 PlayerTab.Ships -> ShipsTab(player.ships)
             }
         }

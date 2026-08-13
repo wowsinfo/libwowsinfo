@@ -72,6 +72,7 @@ pub(super) fn select(model: &mut Model, account_id: u64) -> Command<Effect, Even
     model.pending_ships = None;
     model.achievements.clear();
     model.clan_tag.clear();
+    model.recent = None;
 
     let Some(config) = model.config.clone() else {
         model.phase = Phase::Error("App not initialised".to_string());
@@ -116,6 +117,21 @@ fn player_commands(model: &mut Model, key: &str, account_id: u64) -> Vec<Command
             .expect_string()
             .build()
             .then_send(|result| Event::ClanLoaded(http_outcome(result))),
+    );
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    commands.push(
+        HttpCap::get(api::stats_by_date(
+            model.server,
+            key,
+            account_id,
+            &downloader::recent_dates(now),
+        ))
+        .expect_string()
+        .build()
+        .then_send(|result| Event::RecentLoaded(http_outcome(result))),
     );
     commands.push(render::render());
     commands

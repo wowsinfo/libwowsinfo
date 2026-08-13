@@ -64,6 +64,10 @@ pub struct PlayerInfo {
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
 pub struct PlayerStatistics {
     #[serde(default)]
+    pub battles: i64,
+    #[serde(default)]
+    pub distance: i64,
+    #[serde(default)]
     pub pvp: Option<PvpStats>,
     #[serde(default, rename = "pvp_solo")]
     pub solo: Option<PvpStats>,
@@ -154,6 +158,29 @@ pub struct PvpStats {
     pub max_total_agro: i64,
     #[serde(default)]
     pub max_damage_scouting: i64,
+    #[serde(default)]
+    pub main_battery: Option<WeaponStats>,
+    #[serde(default)]
+    pub second_battery: Option<WeaponStats>,
+    #[serde(default)]
+    pub torpedoes: Option<WeaponStats>,
+    #[serde(default)]
+    pub aircraft: Option<WeaponStats>,
+    #[serde(default)]
+    pub ramming: Option<WeaponStats>,
+}
+
+/// Hit ratio data for one weapon group (main battery, torpedoes, ...).
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
+pub struct WeaponStats {
+    #[serde(default)]
+    pub shots: i64,
+    #[serde(default)]
+    pub hits: i64,
+    #[serde(default)]
+    pub frags: i64,
+    #[serde(default)]
+    pub max_frags_battle: i64,
 }
 
 /// One unlocked achievement for a player (`achievement_id` -> count).
@@ -167,6 +194,32 @@ pub struct Achievement {
     pub name: String,
     #[serde(default)]
     pub icon: String,
+}
+
+/// One day of a player's recent stats (per-day delta from `statsbydate`).
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
+pub struct RecentDay {
+    #[serde(default)]
+    pub date: String,
+    #[serde(default)]
+    pub battles: i64,
+    #[serde(default)]
+    pub winrate: f64,
+    #[serde(default)]
+    pub avg_damage: f64,
+}
+
+/// 10-day overview shown by the recent charts.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
+pub struct RecentOverview {
+    #[serde(default)]
+    pub days: Vec<RecentDay>,
+    #[serde(default)]
+    pub total_battles: i64,
+    #[serde(default)]
+    pub avg_winrate: f64,
+    #[serde(default)]
+    pub avg_damage: f64,
 }
 
 /// Wiki entry for an achievement (name/icon), used to enrich the player's
@@ -295,6 +348,8 @@ pub struct PlayerView {
     pub leveling_tier: Option<i64>,
     #[serde(default)]
     pub clan_tag: String,
+    #[serde(default)]
+    pub recent: Option<RecentOverview>,
 }
 
 /// One row of the player's ship list with computed rating data.

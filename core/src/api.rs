@@ -101,6 +101,15 @@ pub fn achievements_wiki(server: Server, api_key: &str, language: &str) -> Strin
     )
 }
 
+/// Player stats by date (last 10 days) for the recent charts.
+#[must_use]
+pub fn stats_by_date(server: Server, api_key: &str, account_id: u64, dates: &str) -> String {
+    format!(
+        "https://api.worldofwarships.{}/wows/account/statsbydate/?application_id={api_key}&account_id={account_id}&dates={dates}",
+        server.domain()
+    )
+}
+
 /// Player clan: `/wows/clans/accountinfo/`.
 #[must_use]
 pub fn player_clan(server: Server, api_key: &str, account_id: u64) -> String {

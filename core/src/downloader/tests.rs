@@ -129,6 +129,7 @@ fn assemble_player_builds_view() {
             crate::data::Server::Asia,
             String::new(),
             Vec::new(),
+            None,
         );
     assert_eq!(view.nickname, "HenryQuan");
     assert_eq!(view.server, "asia");
@@ -184,6 +185,35 @@ fn clan_tag_extracts_tag() {
 }
 
 #[test]
+fn recent_dates_cover_last_ten_days() {
+    // Epoch 0 -> 1970-01-01, so day -1 is 1969-12-31 and the list descends.
+    let dates = recent_dates(0);
+    let parts: Vec<&str> = dates.split(',').collect();
+    assert_eq!(parts.len(), 10);
+    assert_eq!(parts[0], "19691231");
+    assert!(parts.iter().all(|d| d.len() == 8 && d.chars().all(|c| c.is_ascii_digit())));
+}
+
+#[test]
+fn recent_overview_derives_daily_deltas() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {
+            "20260801": {"pvp": {"battles": 10, "wins": 5, "damage_dealt": 100000}},
+            "20260802": {"pvp": {"battles": 14, "wins": 7, "damage_dealt": 150000}}
+        }}
+    });
+    let overview = parse_recent_overview(&json, 42).expect("overview");
+    assert_eq!(overview.days.len(), 1);
+    assert_eq!(overview.days[0].battles, 4);
+    assert_eq!(overview.days[0].winrate, 50.0);
+    assert_eq!(overview.days[0].avg_damage, 12_500.0);
+    assert_eq!(overview.total_battles, 4);
+    assert_eq!(overview.avg_winrate, 50.0);
+    assert_eq!(overview.avg_damage, 12_500.0);
+}
+
+#[test]
 fn statistics_parses_all_modes() {
     let json = serde_json::json!({
         "status": "ok",
@@ -191,7 +221,12 @@ fn statistics_parses_all_modes() {
             "account_id": 42,
             "nickname": "Bob",
             "statistics": {
-                "pvp": {"battles": 10},
+                "battles": 31,
+                "distance": 12345,
+                "pvp": {
+                    "battles": 10,
+                    "main_battery": {"shots": 100, "hits": 40, "frags": 5, "max_frags_battle": 2}
+                },
                 "pvp_solo": {"battles": 5},
                 "pvp_div2": {"battles": 3},
                 "pvp_div3": {"battles": 2},
@@ -200,9 +235,14 @@ fn statistics_parses_all_modes() {
             }
         }}
     });
-    let player = parse_player_info(&json, 42).expect("player");
-    let stats = player.statistics.expect("statistics");
-    assert_eq!(stats.pvp.as_ref().map(|p| p.battles), Some(10));
+        let player = parse_player_info(&json, 42).expect("player");
+        let stats = player.statistics.expect("statistics");
+        assert_eq!(stats.battles, 31);
+        assert_eq!(stats.distance, 12345);
+        assert_eq!(stats.pvp.as_ref().map(|p| p.battles), Some(10));
+        let main_battery = stats.pvp.as_ref().unwrap().main_battery.as_ref().unwrap();
+        assert_eq!(main_battery.shots, 100);
+        assert_eq!(main_battery.hits, 40);
     assert_eq!(stats.solo.as_ref().map(|p| p.battles), Some(5));
     assert_eq!(stats.div2.as_ref().map(|p| p.battles), Some(3));
     assert_eq!(stats.div3.as_ref().map(|p| p.battles), Some(2));

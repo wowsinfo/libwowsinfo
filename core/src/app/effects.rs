@@ -178,6 +178,21 @@ pub(super) fn on_clan_loaded(model: &mut Model, outcome: HttpOutcome) -> Command
     try_assemble(model)
 }
 
+pub(super) fn on_recent_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+    match outcome {
+        HttpOutcome::Ok { body } => {
+            let json = serde_json::from_str(&body).unwrap_or_default();
+            if let Some(account_id) = model.pending_account_id {
+                model.recent = downloader::parse_recent_overview(&json, account_id);
+            }
+        }
+        // The `statsbydate` endpoint is no longer served by the API; recent
+        // charts simply stay hidden until a data source is available.
+        HttpOutcome::Err { .. } => {}
+    }
+    try_assemble(model)
+}
+
 pub(super) fn on_game_version_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
@@ -280,6 +295,7 @@ fn try_assemble(model: &mut Model) -> Command<Effect, Event> {
             model.server,
             model.clan_tag.clone(),
             model.achievements.clone(),
+            model.recent.clone(),
         );
         model.selected = Some(view);
         model.phase = Phase::Player;

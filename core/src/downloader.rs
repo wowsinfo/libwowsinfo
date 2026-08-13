@@ -8,7 +8,8 @@ use serde_json::{Map, Value};
 use crate::{
     models::{
         AccountListEntry, Achievement, ApiResponse, EncyclopediaAchievement, EncyclopediaShip,
-        PlayerInfo, PlayerView, PrEntry, RawEncyclopediaShip, ShipStatLine, ShipStats,
+        PlayerInfo, PlayerView, PrEntry, RawEncyclopediaShip, RecentDay, RecentOverview,
+        ShipStatLine, ShipStats,
     },
     rating::{get_ap, get_colour, get_comment, get_overall_rating},
 };
@@ -178,6 +179,102 @@ pub fn parse_clan_tag(json: &Value, account_id: u64) -> String {
         .to_string()
 }
 
+/// Last 10 days (yesterday back to ten days ago) as `YYYYMMDD` joined by
+/// commas, matching `RecentDate` in the Flutter app.
+#[must_use]
+pub fn recent_dates(now_secs: i64) -> String {
+    let days = now_secs.div_euclid(86_400);
+    (1..=10)
+        .map(|offset| {
+            let (year, month, day) = civil_from_days(days - offset);
+            format!("{year:04}{month:02}{day:02}")
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// Days since 1970-01-01 -> (year, month, day) using Howard Hinnant's
+/// `civil_from_days` algorithm.
+fn civil_from_days(z: i64) -> (i64, i64, i64) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let year = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = (doy - (153 * mp + 2) / 5 + 1) as i64;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 } as i64;
+    (if month <= 2 { year + 1 } else { year }, month, day)
+}
+
+/// Parse `/wows/account/statsbydate/` into a recent overview. The API
+/// returns cumulative daily totals, so per-day values are derived from the
+/// differences between consecutive days.
+#[must_use]
+pub fn parse_recent_overview(json: &Value, account_id: u64) -> Option<RecentOverview> {
+    let empty = Value::Object(Map::new());
+    let data = guard(json, "data", &empty);
+    let account = data.get(account_id.to_string())?;
+
+    struct Record {
+        battles: i64,
+        wins: i64,
+        damage: i64,
+    }
+    let mut records: Vec<(String, Record)> = account
+        .as_object()?
+        .iter()
+        .filter_map(|(date, entry)| {
+            let pvp = entry.get("pvp")?;
+            Some((
+                date.clone(),
+                Record {
+                    battles: pvp.get("battles").and_then(Value::as_i64).unwrap_or(0),
+                    wins: pvp.get("wins").and_then(Value::as_i64).unwrap_or(0),
+                    damage: pvp
+                        .get("damage_dealt")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0),
+                },
+            ))
+        })
+        .collect();
+    records.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut days = Vec::new();
+    let mut previous: Option<&Record> = None;
+    for (date, record) in &records {
+        if let Some(previous) = previous {
+            let battles = record.battles - previous.battles;
+            let wins = record.wins - previous.wins;
+            let damage = record.damage - previous.damage;
+            if battles > 0 {
+                days.push(RecentDay {
+                    date: date.clone(),
+                    battles,
+                    winrate: wins as f64 / battles as f64 * 100.0,
+                    avg_damage: damage as f64 / battles as f64,
+                });
+            }
+        }
+        previous = Some(record);
+    }
+
+    if days.is_empty() {
+        return None;
+    }
+    let total_battles: i64 = days.iter().map(|d| d.battles).sum();
+    let avg_winrate = days.iter().map(|d| d.winrate).sum::<f64>() / days.len() as f64;
+    let avg_damage = days.iter().map(|d| d.avg_damage).sum::<f64>() / days.len() as f64;
+    Some(RecentOverview {
+        days,
+        total_battles,
+        avg_winrate,
+        avg_damage,
+    })
+}
+
 /// Parse `/wows/ships/stats/` into the ship list for one account.
 ///
 /// The API returns `data.<account_id>` either as an object keyed by ship id
@@ -234,6 +331,7 @@ pub fn assemble_player(
     server: crate::data::Server,
     clan_tag: String,
     achievements: Vec<Achievement>,
+    recent: Option<RecentOverview>,
 ) -> PlayerView {
     let rating = get_overall_rating(&mut ships, pr);
     let total_battles: i64 = ships
@@ -291,6 +389,7 @@ pub fn assemble_player(
         last_battle_time: player.last_battle_time,
         leveling_tier: player.leveling_tier,
         clan_tag,
+        recent,
     }
 }
 
