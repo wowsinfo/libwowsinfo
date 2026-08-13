@@ -373,8 +373,25 @@ pub fn assemble_player(
                 statistics: PlayerStatistics {
                     battles: s.battles,
                     pvp: s.pvp.clone(),
+                    solo: s.solo.clone(),
+                    div2: s.div2.clone(),
+                    div3: s.div3.clone(),
+                    pve: s.pve.clone(),
+                    rank_solo: s.rank_solo.clone(),
                     ..Default::default()
                 },
+                expected_dmg: pr
+                    .get(&s.ship_id)
+                    .map(|e| e.average_damage_dealt)
+                    .unwrap_or_default(),
+                expected_winrate: pr
+                    .get(&s.ship_id)
+                    .map(|e| e.win_rate)
+                    .unwrap_or_default(),
+                expected_frags: pr
+                    .get(&s.ship_id)
+                    .map(|e| e.average_frags)
+                    .unwrap_or_default(),
             }
         })
         .collect();

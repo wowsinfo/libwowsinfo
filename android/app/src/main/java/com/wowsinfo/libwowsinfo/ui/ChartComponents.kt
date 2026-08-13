@@ -17,10 +17,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+
+/** Material 500 palette used by the original app's charts. */
+private val ChartPalette = listOf(
+    Color(0xFFF44336), // red
+    Color(0xFF2196F3), // blue
+    Color(0xFF4CAF50), // green
+    Color(0xFF9C27B0), // purple
+    Color(0xFFFF5722), // deep orange
+    Color(0xFF00BCD4), // cyan
+    Color(0xFF3F51B5), // indigo
+    Color(0xFFCDDC39), // lime
+    Color(0xFFE91E63), // pink
+    Color(0xFF9E9E9E), // gray
+    Color(0xFF009688), // teal
+    Color(0xFFFFEB3B), // yellow
+)
+
+fun chartColor(index: Int): Color = ChartPalette[index % ChartPalette.size]
 
 /** Section title, optional subtitle and horizontal bars. */
 @Composable
@@ -29,6 +48,7 @@ fun ChartSection(
     entries: List<Pair<String, Double>>,
     subtitle: String? = null,
     valueFormat: (Double) -> String = { formatNumber(it) },
+    color: Color? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -48,15 +68,30 @@ fun ChartSection(
             )
         } else {
             val max = entries.maxOf { it.second }.coerceAtLeast(1.0)
-            entries.forEach { (label, value) ->
-                BarRow(label, valueFormat(value), value / max)
+            entries.forEachIndexed { index, (label, value) ->
+                BarRow(
+                    label = label,
+                    valueText = valueFormat(value),
+                    fraction = value / max,
+                    color = color ?: chartColor(index),
+                )
             }
         }
     }
 }
 
 @Composable
-fun BarRow(label: String, valueText: String, fraction: Double) {
+fun BarRow(
+    label: String,
+    valueText: String,
+    fraction: Double,
+    color: Color = Color.Unspecified,
+) {
+    val barColor = if (color == Color.Unspecified) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        color
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -78,7 +113,7 @@ fun BarRow(label: String, valueText: String, fraction: Double) {
                 modifier = Modifier
                     .fillMaxWidth(fraction.toFloat())
                     .height(14.dp)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(barColor),
             )
         }
         Text(
@@ -96,6 +131,7 @@ fun LineChartSection(
     title: String,
     subtitle: String,
     points: List<Pair<String, Double>>,
+    color: Color = Color.Unspecified,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         SectionTitle(title)
@@ -111,7 +147,11 @@ fun LineChartSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            val lineColor = MaterialTheme.colorScheme.primary
+            val lineColor = if (color == Color.Unspecified) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                color
+            }
             Canvas(modifier = Modifier.fillMaxWidth().height(140.dp)) {
                 val max = points.maxOf { it.second }
                 val min = points.minOf { it.second }

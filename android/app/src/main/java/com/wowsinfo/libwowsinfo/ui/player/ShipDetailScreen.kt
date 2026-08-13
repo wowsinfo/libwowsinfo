@@ -11,12 +11,16 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,7 +44,15 @@ import com.wowsinfo.libwowsinfo.ui.parseRatingColor
 @Composable
 fun ShipDetailScreen(ship: ShipStatLine, onBack: () -> Unit) {
     val ratingColor = remember(ship.ratingColour) { parseRatingColor(ship.ratingColour) }
-    val stats = ship.statistics.pvp
+    var mode by remember { mutableStateOf(StatMode.PvP) }
+    val stats = when (mode) {
+        StatMode.PvP -> ship.statistics.pvp
+        StatMode.Solo -> ship.statistics.solo
+        StatMode.Div2 -> ship.statistics.div2
+        StatMode.Div3 -> ship.statistics.div3
+        StatMode.PvE -> ship.statistics.pve
+        StatMode.Rank -> ship.statistics.rankSolo
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -63,18 +75,9 @@ fun ShipDetailScreen(ship: ShipStatLine, onBack: () -> Unit) {
         ) {
             item { ShipBanner(ship, ratingColor) }
             item { ShipSummary(ship) }
-            item { SectionTitle("PvP") }
-            if (stats != null && stats.battles > 0) {
-                item { ModeStatsGrid(stats) }
-            } else {
-                item {
-                    Text(
-                        "No battles",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            item { ShipAverage(ship) }
+            item { ModeSelector(mode) { mode = it } }
+            item { ModeStatsGrid(stats) }
         }
     }
 }
@@ -125,5 +128,45 @@ private fun ShipSummary(ship: ShipStatLine) {
         Stat("DMG", formatNumber(ship.avgDmg), modifier = Modifier.weight(1f))
         Stat("WR", formatPercent(ship.avgWinrate), modifier = Modifier.weight(1f))
         Stat("Frags", formatNumber(ship.avgFrags), modifier = Modifier.weight(1f))
+    }
+}
+
+/** Player stats vs the ship's average (from the PR table), like
+ *  `ShipAverageStatistics` in the Flutter app. */
+@Composable
+private fun ShipAverage(ship: ShipStatLine) {
+    if (ship.expectedDmg <= 0.0 && ship.expectedWinrate <= 0.0 && ship.expectedFrags <= 0.0) {
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SectionTitle("Average")
+        AverageRow("DMG", formatNumber(ship.avgDmg), formatNumber(ship.expectedDmg))
+        AverageRow("WR", formatPercent(ship.avgWinrate), formatPercent(ship.expectedWinrate))
+        AverageRow("Frags", formatNumber(ship.avgFrags), formatNumber(ship.expectedFrags))
+    }
+}
+
+@Composable
+private fun AverageRow(label: String, player: String, expected: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(64.dp),
+        )
+        Text(
+            player,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            "avg $expected",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

@@ -1,4 +1,4 @@
-package com.wowsinfo.libwowsinfo.ui.player
+﻿package com.wowsinfo.libwowsinfo.ui.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wowsinfo.libwowsinfo.PlayerView
@@ -37,9 +38,10 @@ import com.wowsinfo.libwowsinfo.ui.formatEpochDate
 import com.wowsinfo.libwowsinfo.ui.formatDecimal
 import com.wowsinfo.libwowsinfo.ui.formatNumber
 import com.wowsinfo.libwowsinfo.ui.formatPercent
+import com.wowsinfo.libwowsinfo.ui.formatRating
 import com.wowsinfo.libwowsinfo.ui.parseRatingColor
 
-private enum class StatMode(val label: String) {
+enum class StatMode(val label: String) {
     PvP("PvP"),
     Solo("Solo"),
     Div2("Div2"),
@@ -160,7 +162,7 @@ private fun PlayerHeader(player: PlayerView) {
 }
 
 @Composable
-private fun ModeSelector(selected: StatMode, onSelect: (StatMode) -> Unit) {
+fun ModeSelector(selected: StatMode, onSelect: (StatMode) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -175,116 +177,70 @@ private fun ModeSelector(selected: StatMode, onSelect: (StatMode) -> Unit) {
     }
 }
 
-@Composable
-fun ModeStatsGrid(stats: PvpStats?) {
-    val battles = stats?.battles ?: 0L
-    val wins = stats?.wins ?: 0L
-    val damage = stats?.damageDealt ?: 0L
-    val xp = stats?.xp ?: 0L
-    val frags = stats?.frags ?: 0L
-    val survivedBattles = stats?.survivedBattles ?: 0L
-    val survivedWins = stats?.survivedWins ?: 0L
-    val planes = stats?.planesKilled ?: 0L
-    val spotted = stats?.shipsSpotted ?: 0L
-    val maxDamage = stats?.maxDamageDealt ?: 0L
-    val maxFrags = stats?.maxFragsBattle ?: 0L
-    val maxXp = stats?.maxXp ?: 0L
-    val draws = stats?.draws ?: 0L
-    val potential = (stats?.artAgro ?: 0L) + (stats?.torpedoAgro ?: 0L)
-    val capture = stats?.capturePoints ?: 0L
-    val teamCapture = stats?.teamCapturePoints ?: 0L
-    val maxPlanes = stats?.maxPlanesKilled ?: 0L
-    val maxSpotted = stats?.maxShipsSpotted ?: 0L
-    val maxTotalAgro = stats?.maxTotalAgro ?: 0L
-
-    val winRate = if (battles > 0) wins.toDouble() / battles * 100.0 else 0.0
-    val avgDmg = if (battles > 0) damage.toDouble() / battles else 0.0
-    val avgXp = if (battles > 0) xp.toDouble() / battles else 0.0
-    val deaths = (battles - survivedBattles).coerceAtLeast(1)
-    val killDeath = frags.toDouble() / deaths
-    val survivedRate = if (battles > 0) survivedBattles.toDouble() / battles * 100.0 else 0.0
-    val survivedWinsRate = if (battles > 0) survivedWins.toDouble() / battles * 100.0 else 0.0
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        StatRow(
-            StatCell("Battles", formatNumber(battles)),
-            StatCell("WR", formatPercent(winRate)),
-            StatCell("DMG", formatNumber(avgDmg)),
-        )
-        StatRow(
-            StatCell("Avg XP", formatNumber(avgXp)),
-            StatCell("K/D", formatDecimal(killDeath)),
-            StatCell("Survived", formatPercent(survivedRate)),
-        )
-        StatRow(
-            StatCell("Planes", formatNumber(planes)),
-            StatCell("Spotted", formatNumber(spotted)),
-            StatCell("Max DMG", formatNumber(maxDamage)),
-        )
-        StatRow(
-            StatCell("Max Frags", formatNumber(maxFrags)),
-            StatCell("Max XP", formatNumber(maxXp)),
-            StatCell("Draws", formatNumber(draws)),
-        )
-        StatRow(
-            StatCell("Potential", formatNumber(potential)),
-            StatCell("Capture", formatNumber(capture)),
-            StatCell("Team cap", formatNumber(teamCapture)),
-        )
-        StatRow(
-            StatCell("Max planes", formatNumber(maxPlanes)),
-            StatCell("Max spotted", formatNumber(maxSpotted)),
-            StatCell("Max potential", formatNumber(maxTotalAgro)),
-        )
-        StatRow(
-            StatCell("Main hit", weaponHitRate(stats?.mainBattery)),
-            StatCell("Torp hit", weaponHitRate(stats?.torpedoes)),
-            StatCell("Sec hit", weaponHitRate(stats?.secondBattery)),
-        )
-        StatRow(
-            StatCell("Aircraft hit", weaponHitRate(stats?.aircraft)),
-            StatCell("Ramming hit", weaponHitRate(stats?.ramming)),
-            StatCell("Survived wins", formatPercent(survivedWinsRate)),
-        )
-    }
-}
-
-private fun weaponHitRate(weapon: WeaponStats?): String {
-    if (weapon == null || weapon.shots <= 0) {
-        return "—"
-    }
-    return formatPercent(weapon.hits.toDouble() / weapon.shots * 100.0)
-}
+private data class BestEntry(val label: String, val ship: ShipStatLine, val value: String)
 
 @Composable
 private fun BestShipsSection(ships: List<ShipStatLine>) {
     val best = remember(ships) {
-        ships.filter { it.battles > 0 }.sortedByDescending { it.rating }.take(5)
+        listOfNotNull(
+            ships.maxByOrNull { it.avgDmg }
+                ?.let { BestEntry("Damage", it, formatNumber(it.avgDmg)) },
+            ships.maxByOrNull { it.avgWinrate }
+                ?.let { BestEntry("Winrate", it, formatPercent(it.avgWinrate)) },
+            ships.maxByOrNull { it.avgFrags }
+                ?.let { BestEntry("Frags", it, formatNumber(it.avgFrags)) },
+            ships.maxByOrNull { it.rating }
+                ?.let { BestEntry("Rating", it, formatRating(it.rating)) },
+            ships.maxByOrNull { it.statistics.pvp?.torpedoes?.maxFragsBattle ?: 0L }
+                ?.takeIf { (it.statistics.pvp?.torpedoes?.maxFragsBattle ?: 0L) > 0 }
+                ?.let {
+                    BestEntry(
+                        "Torp",
+                        it,
+                        "${formatNumber(it.statistics.pvp?.torpedoes?.maxFragsBattle ?: 0L)} frags",
+                    )
+                },
+            ships.maxByOrNull { it.statistics.pvp?.ramming?.maxFragsBattle ?: 0L }
+                ?.takeIf { (it.statistics.pvp?.ramming?.maxFragsBattle ?: 0L) > 0 }
+                ?.let {
+                    BestEntry(
+                        "Ramming",
+                        it,
+                        "${formatNumber(it.statistics.pvp?.ramming?.maxFragsBattle ?: 0L)} frags",
+                    )
+                },
+        )
     }
     if (best.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         SectionTitle("Best ships")
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            best.forEach { ship ->
-                ShipCell(ship, modifier = Modifier.width(120.dp))
+        best.forEach { entry ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    entry.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(72.dp),
+                )
+                Text(
+                    entry.ship.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    entry.value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = remember(entry.ship.ratingColour) {
+                        parseRatingColor(entry.ship.ratingColour)
+                    },
+                )
             }
         }
     }
 }
 
-private data class StatCell(val label: String, val value: String)
-
-@Composable
-private fun StatRow(first: StatCell, second: StatCell, third: StatCell) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceAround,
-    ) {
-        Stat(first.label, first.value, modifier = Modifier.weight(1f))
-        Stat(second.label, second.value, modifier = Modifier.weight(1f))
-        Stat(third.label, third.value, modifier = Modifier.weight(1f))
-    }
-}

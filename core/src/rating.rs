@@ -243,11 +243,7 @@ mod tests {
                 frags: 10,
                 ..Default::default()
             }),
-            rating: 0.0,
-            ap: 0.0,
-            avg_dmg: 0.0,
-            avg_winrate: 0.0,
-            avg_frags: 0.0,
+            ..Default::default()
         }];
 
         let overall = get_overall_rating(&mut ships, &pr);

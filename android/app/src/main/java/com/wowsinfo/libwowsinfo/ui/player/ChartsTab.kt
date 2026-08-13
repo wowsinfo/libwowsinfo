@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.wowsinfo.libwowsinfo.PlayerView
@@ -49,6 +50,7 @@ fun ChartsTab(player: PlayerView) {
                     title = "Recent battles",
                     subtitle = "${formatNumber(overview.totalBattles)} battles",
                     points = overview.days.map { it.date to it.battles.toDouble() },
+                    color = Color(0xFF2196F3),
                 )
             }
             item {
@@ -56,6 +58,7 @@ fun ChartsTab(player: PlayerView) {
                     title = "Recent average winrate",
                     subtitle = formatPercent(overview.avgWinrate),
                     points = overview.days.map { it.date to it.winrate },
+                    color = Color(0xFF4CAF50),
                 )
             }
             item {
@@ -63,6 +66,7 @@ fun ChartsTab(player: PlayerView) {
                     title = "Recent average damage",
                     subtitle = formatNumber(overview.avgDamage),
                     points = overview.days.map { it.date to it.avgDamage },
+                    color = Color(0xFFD32F2F),
                 )
             }
         }
@@ -83,15 +87,28 @@ fun ChartsTab(player: PlayerView) {
         }
         item { ChartSection("Battles by Type", type) }
         item { ChartSection("Battles by Nation", nation) }
-        item { ChartSection("Top ten ships by battles", topBattles) }
+        item {
+            ChartSection(
+                title = "Top ten ships by battles",
+                entries = topBattles,
+                color = Color(0xFFD32F2F),
+            )
+        }
         item {
             ChartSection(
                 title = "Top ten ships by winrate",
                 entries = topWinrate,
                 valueFormat = { formatPercent(it) },
+                color = Color(0xFF4CAF50),
             )
         }
-        item { ChartSection("Top ten ships by damage", topDamage) }
+        item {
+            ChartSection(
+                title = "Top ten ships by damage",
+                entries = topDamage,
+                color = Color(0xFF2196F3),
+            )
+        }
     }
 }
 

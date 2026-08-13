@@ -95,6 +95,16 @@ pub struct ShipStats {
     pub frags: i64,
     #[serde(default)]
     pub pvp: Option<PvpStats>,
+    #[serde(default, rename = "pvp_solo")]
+    pub solo: Option<PvpStats>,
+    #[serde(default, rename = "pvp_div2")]
+    pub div2: Option<PvpStats>,
+    #[serde(default, rename = "pvp_div3")]
+    pub div3: Option<PvpStats>,
+    #[serde(default)]
+    pub pve: Option<PvpStats>,
+    #[serde(default, rename = "rank_solo")]
+    pub rank_solo: Option<PvpStats>,
     // Computed by `getOverallRating` (written back onto the stats).
     #[serde(default, skip)]
     pub rating: f64,
@@ -158,6 +168,10 @@ pub struct PvpStats {
     pub max_total_agro: i64,
     #[serde(default)]
     pub max_damage_scouting: i64,
+    #[serde(default)]
+    pub max_damage_dealt_to_buildings: i64,
+    #[serde(default)]
+    pub max_suppressions_count: i64,
     #[serde(default)]
     pub main_battery: Option<WeaponStats>,
     #[serde(default)]
@@ -372,4 +386,10 @@ pub struct ShipStatLine {
     pub ap: f64,
     #[serde(default)]
     pub statistics: PlayerStatistics,
+    #[serde(default)]
+    pub expected_dmg: f64,
+    #[serde(default)]
+    pub expected_winrate: f64,
+    #[serde(default)]
+    pub expected_frags: f64,
 }

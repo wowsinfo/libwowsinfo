@@ -79,17 +79,21 @@ fn ship_stats_parse_skips_pvp_rollup() {
 #[test]
 fn ship_stats_parse_handles_array_format() {
     let json = serde_json::json!({
-        "status": "ok",
-        "data": {"42": [
-            {"account_id": 42, "ship_id": 1, "battles": 10,
-             "pvp": {"battles": 10, "wins": 5, "damage_dealt": 100, "frags": 2}},
-            {"account_id": 42, "ship_id": 2, "battles": 0, "pvp": null}
-        ]}
-    });
-    let ships = parse_ship_stats(&json, 42);
-    assert_eq!(ships.len(), 2);
-    assert_eq!(ships[0].ship_id, 1);
-    assert_eq!(ships[1].ship_id, 2);
+            "status": "ok",
+            "data": {"42": [
+                {"account_id": 42, "ship_id": 1, "battles": 10,
+                 "pvp": {"battles": 10, "wins": 5, "damage_dealt": 100, "frags": 2},
+                 "pvp_solo": {"battles": 4, "wins": 2, "damage_dealt": 40, "frags": 1},
+                 "pve": {"battles": 2, "wins": 2, "damage_dealt": 20, "frags": 0}},
+                {"account_id": 42, "ship_id": 2, "battles": 0, "pvp": null}
+            ]}
+        });
+        let ships = parse_ship_stats(&json, 42);
+        assert_eq!(ships.len(), 2);
+        assert_eq!(ships[0].ship_id, 1);
+        assert_eq!(ships[0].solo.as_ref().map(|p| p.battles), Some(4));
+        assert_eq!(ships[0].pve.as_ref().map(|p| p.battles), Some(2));
+        assert_eq!(ships[1].ship_id, 2);
 }
 
 #[test]
