@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -28,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.wowsinfo.libwowsinfo.Event
@@ -43,13 +46,14 @@ fun SearchScreen(
     core: Core,
     viewModel: ViewModel,
     onPlayerSelected: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
     var server by remember { mutableStateOf(Server.ASIA) }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ServerSelector(server) { selected ->
@@ -63,6 +67,7 @@ fun SearchScreen(
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Search player nickname") },
             singleLine = true,
+            shape = RoundedCornerShape(24.dp),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = {
                 scope.launch { core.update(Event.SearchPlayer(query)) }
@@ -70,21 +75,17 @@ fun SearchScreen(
         )
 
         when (val phase = viewModel.phase) {
-            is Phase.Searching -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            is Phase.Searching ->
+                Box(Modifier.fillMaxWidth().padding(top = 24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
 
-            is Phase.Error -> Text(
-                text = phase.value,
-                color = MaterialTheme.colorScheme.error,
-            )
+            is Phase.Error ->
+                Text(phase.value, color = MaterialTheme.colorScheme.error)
 
             is Phase.Idle ->
                 if (viewModel.searchResults.isEmpty()) {
-                    Text(
-                        "Enter a nickname to look up a player.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Text("Enter a nickname to look up a player.", style = MaterialTheme.typography.bodyMedium)
                 } else {
                     ResultList(viewModel.searchResults, core, onPlayerSelected)
                 }
@@ -101,23 +102,30 @@ private fun ResultList(
     onPlayerSelected: () -> Unit,
 ) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        item { SectionTitle("Player - ${results.size}") }
         items(results, key = { it.accountId.toString() }) { result ->
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
                         onPlayerSelected()
                         core.update(Event.SelectPlayer(result.accountId))
                     }
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(result.nickname, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Account ID: ${result.accountId}",
+                    result.nickname,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    result.accountId.toString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         }
     }
 }
@@ -126,7 +134,7 @@ private fun ResultList(
 private fun ServerSelector(server: Server, onSelect: (Server) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     OutlinedButton(onClick = { expanded = true }) {
-        Text("Server: ${server.displayName}")
+        Text("Server: ${server.displayName}", fontWeight = FontWeight.Medium)
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         Server.entries.forEach { candidate ->

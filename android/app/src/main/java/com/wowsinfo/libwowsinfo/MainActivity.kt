@@ -4,7 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -17,13 +19,15 @@ import androidx.compose.ui.Modifier
 import com.wowsinfo.libwowsinfo.core.Core
 import com.wowsinfo.libwowsinfo.ui.PlayerScreen
 import com.wowsinfo.libwowsinfo.ui.SearchScreen
+import com.wowsinfo.libwowsinfo.ui.WoWsInfoTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         val core = (application as WoWsInfoApp).core
         setContent {
-            MaterialTheme {
+            WoWsInfoTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
@@ -47,12 +51,14 @@ private fun WoWsInfoScreen(core: Core) {
             core = core,
             viewModel = viewModel,
             onBack = { backToSearch = true },
+            modifier = Modifier.safeDrawingPadding(),
         )
     } else {
         SearchScreen(
             core = core,
             viewModel = viewModel,
             onPlayerSelected = { backToSearch = false },
+            modifier = Modifier.safeDrawingPadding(),
         )
     }
 }
