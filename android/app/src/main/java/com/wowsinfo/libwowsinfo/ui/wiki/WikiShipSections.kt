@@ -22,6 +22,8 @@ import com.wowsinfo.libwowsinfo.AirDefenseStats
 import com.wowsinfo.libwowsinfo.AirSupportStats
 import com.wowsinfo.libwowsinfo.AircraftDetail
 import com.wowsinfo.libwowsinfo.AircraftSlotView
+import com.wowsinfo.libwowsinfo.AdjustedStats
+import com.wowsinfo.libwowsinfo.BurstInfo
 import com.wowsinfo.libwowsinfo.AuraInfo
 import com.wowsinfo.libwowsinfo.DepthChargeStats
 import com.wowsinfo.libwowsinfo.HullStats
@@ -39,6 +41,7 @@ import com.wowsinfo.libwowsinfo.ui.Stat
 import com.wowsinfo.libwowsinfo.ui.chartColor
 import com.wowsinfo.libwowsinfo.ui.formatNumber
 import java.util.Locale
+import kotlin.math.abs
 
 private fun fmt(value: Double, digits: Int = 1): String =
     String.format(Locale.US, "%,.${digits}f", value)
@@ -68,11 +71,12 @@ private fun SectionCard(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun SurvivabilitySection(hull: HullStats) {
+fun SurvivabilitySection(hull: HullStats, adjusted: AdjustedStats) {
     SectionCard("Survivability") {
+        val health = adjusted.health.coerceAtLeast(0.0)
         StatGrid(
             listOf(
-                Triple("Health", fmtInt(hull.health), 0),
+                Triple("Health", healthText(hull.health, health), 0),
                 Triple("Torpedo protection", "${fmt(hull.protection)}%", 1),
             ),
         )
@@ -80,7 +84,18 @@ fun SurvivabilitySection(hull: HullStats) {
 }
 
 @Composable
-fun MainBatterySection(battery: MainBatteryView, curves: List<PenCurveView>) {
+private fun healthText(base: Double, adjusted: Double): String {
+    val adjustedText = fmtInt(adjusted)
+    return if (abs(base - adjusted) > 0.5) "$adjustedText ($base)" else adjustedText
+}
+
+private fun statWithBase(base: Double, adjusted: Double, suffix: String): String {
+    val text = "${fmt(adjusted.coerceAtLeast(0.0))} $suffix"
+    return if (abs(base - adjusted) > 0.01) "$text ($base)" else text
+}
+
+@Composable
+fun MainBatterySection(battery: MainBatteryView, adjusted: AdjustedStats, curves: List<PenCurveView>) {
     SectionCard("Main Battery") {
         if (battery.name.isNotBlank() && !battery.name.startsWith("IDS_")) {
             Text(
@@ -92,17 +107,18 @@ fun MainBatterySection(battery: MainBatteryView, curves: List<PenCurveView>) {
         StatGrid(
             listOf(
                 Triple("Configuration", battery.configuration, 1),
-                Triple("Range", "${fmt(battery.rangeM / 1000)} km", 2),
-                Triple("Reload", "${fmt(battery.reloadS)} s", 3),
-                Triple("Rotation", "${fmt(battery.rotationDegS)} °/s", 4),
+                Triple("Range", statWithBase(battery.rangeM / 1000, adjusted.gunRangeM / 1000, "km"), 2),
+                Triple("Reload", statWithBase(battery.reloadS, adjusted.gunReloadS, "s"), 3),
+                Triple("Rotation", statWithBase(battery.rotationDegS, adjusted.gunRotationDegS, "°/s"), 4),
             ),
         )
         StatGrid(
             listOf(
                 Triple("Sigma", fmt(battery.sigma), 5),
-                Triple("Burst", battery.burst?.let { "${it.shotsCount} x ${fmt(it.burstReloadTime)} s" } ?: "—", 6),
+                Triple("Burst", battery.burst?.let { "${it.shotsCount} shells" } ?: "—", 6),
             ),
         )
+        battery.burst?.let { burst -> BurstSection(burst) }
         battery.shells.forEach { shell ->
             ShellCard(shell = shell, curves = curves)
         }
@@ -110,13 +126,13 @@ fun MainBatterySection(battery: MainBatteryView, curves: List<PenCurveView>) {
 }
 
 @Composable
-fun SecondarySection(battery: MainBatteryView) {
+fun SecondarySection(battery: MainBatteryView, adjusted: AdjustedStats) {
     SectionCard("Secondaries") {
         StatGrid(
             listOf(
                 Triple("Configuration", battery.configuration, 1),
-                Triple("Range", "${fmt(battery.rangeM / 1000)} km", 2),
-                Triple("Reload", "${fmt(battery.reloadS)} s", 3),
+                Triple("Range", statWithBase(battery.rangeM / 1000, adjusted.secondaryRangeM / 1000, "km"), 2),
+                Triple("Reload", statWithBase(battery.reloadS, adjusted.secondaryReloadS, "s"), 3),
             ),
         )
         battery.shells.forEach { shell -> ShellCard(shell = shell, curves = emptyList()) }
@@ -124,7 +140,7 @@ fun SecondarySection(battery: MainBatteryView) {
 }
 
 @Composable
-fun TorpedoSection(torpedo: TorpedoView) {
+fun TorpedoSection(torpedo: TorpedoView, adjusted: AdjustedStats) {
     SectionCard("Torpedoes") {
         if (torpedo.name.isNotBlank() && !torpedo.name.startsWith("IDS_")) {
             Text(
@@ -136,8 +152,8 @@ fun TorpedoSection(torpedo: TorpedoView) {
         StatGrid(
             listOf(
                 Triple("Launchers", torpedo.configuration, 1),
-                Triple("Reload", "${fmt(torpedo.reloadS)} s", 2),
-                Triple("Rotation", "${fmt(torpedo.rotationDegS)} °/s", 3),
+                Triple("Reload", statWithBase(torpedo.reloadS, adjusted.torpReloadS, "s"), 2),
+                Triple("Rotation", statWithBase(torpedo.rotationDegS, adjusted.torpRotationDegS, "°/s"), 3),
                 Triple("Single shot", if (torpedo.singleShot) "Yes" else "No", 4),
             ),
         )
@@ -146,8 +162,17 @@ fun TorpedoSection(torpedo: TorpedoView) {
 }
 
 @Composable
-fun AirDefenseSection(airDefense: AirDefenseStats) {
+fun AirDefenseSection(airDefense: AirDefenseStats, adjusted: AdjustedStats) {
     SectionCard("Anti-Aircraft") {
+        val baseDps = airDefense.near.sumOf { it.dps } + airDefense.medium.sumOf { it.dps } +
+            airDefense.far.sumOf { it.dps }
+        if (baseDps > 0) {
+            StatGrid(
+                listOf(
+                    Triple("Total DPS", statWithBase(baseDps, adjusted.aaDps, ""), 0),
+                ),
+            )
+        }
         val bands = listOf(
             "Near" to airDefense.near,
             "Medium" to airDefense.medium,
@@ -187,27 +212,45 @@ private fun AuraRow(label: String, aura: AuraInfo, colorIndex: Int) {
 }
 
 @Composable
-fun MobilitySection(mobility: MobilityStats) {
+fun MobilitySection(mobility: MobilityStats, adjusted: AdjustedStats) {
     SectionCard("Mobility") {
         StatGrid(
             listOf(
-                Triple("Speed", "${fmt(mobility.speed)} kn", 1),
+                Triple("Speed", statWithBase(mobility.speed, adjusted.speed, "kn"), 1),
                 Triple("Turning radius", "${fmtInt(mobility.turningRadius)} m", 2),
-                Triple("Rudder", "${fmt(mobility.rudderTime)} s", 3),
+                Triple("Rudder", statWithBase(mobility.rudderTime, adjusted.rudderTime, "s"), 3),
             ),
         )
     }
 }
 
 @Composable
-fun ConcealmentSection(visibility: VisibilityStats) {
+fun ConcealmentSection(visibility: VisibilityStats, adjusted: AdjustedStats) {
     SectionCard("Concealment") {
         StatGrid(
             listOf(
-                Triple("Sea", "${fmt(visibility.sea)} km", 1),
-                Triple("Air", "${fmt(visibility.plane)} km", 2),
+                Triple("Sea", statWithBase(visibility.sea, adjusted.concealmentSea, "km"), 1),
+                Triple("Air", statWithBase(visibility.plane, adjusted.concealmentAir, "km"), 2),
                 Triple("Submarine", "${fmt(visibility.submarine)} km", 3),
             ),
+        )
+    }
+}
+
+@Composable
+fun BurstSection(burst: BurstInfo) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = "Burst Fire",
+            style = MaterialTheme.typography.labelLarge,
+            color = chartColor(6),
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "${burst.shotsCount} shells per salvo · reload ${fmt(burst.burstReloadTime)} s · " +
+                "full reload ${fmt(burst.fullReloadTime)} s · intensity ${fmt(burst.shotIntensity)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

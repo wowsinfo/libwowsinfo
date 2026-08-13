@@ -289,6 +289,13 @@ fn local_data_drives_ship_wiki_and_warship_list() {
     assert_eq!(compare.ships.len(), 1);
     assert_eq!(compare.rows.len(), 15);
     assert_eq!(compare.rows[0].label, "Tier");
+
+    // Loadout toggles rebuild the local ship with adjusted stats.
+    let _ = app.update(Event::SetLocalHp { fraction: 0.5 }, &mut model);
+    let _ = app.update(Event::SetLocalSpotted { spotted: true }, &mut model);
+    let _ = app.update(Event::ToggleLocalSkill { key: "x".to_string() }, &mut model);
+    assert_eq!(app.view(&model).local_ship.as_ref().map(|s| s.hp_fraction), Some(0.5));
+    assert!(app.view(&model).local_ship.as_ref().map(|s| s.spotted).unwrap_or(false));
 }
 
 

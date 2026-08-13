@@ -121,6 +121,9 @@ fn real_wowsinfo_json_parses_when_available() {
     assert!(data.ships.len() > 1000, "ships: {}", data.ships.len());
     assert!(data.projectiles.len() > 2000, "projectiles: {}", data.projectiles.len());
     assert!(data.aircraft.len() > 500, "aircraft: {}", data.aircraft.len());
+    assert!(data.modernizations.len() > 50, "modernizations: {}", data.modernizations.len());
+    assert!(data.flags.len() >= 10, "flags: {}", data.flags.len());
+    assert!(data.skills.len() > 50, "skills: {}", data.skills.len());
     assert!(data.abilities.len() > 100);
     assert!(data.achievements.len() > 100);
 
@@ -190,5 +193,24 @@ fn real_wowsinfo_json_parses_when_available() {
             );
         }
         let _ = ship;
+    }
+    // Loadouts resolve for a cruiser: consumables + skills + upgrades.
+    if data.ships.contains_key(&4_293_834_736) {
+        let wiki = build_local_ship_wiki(
+            &data,
+            &lang,
+            4_293_834_736,
+            ModuleSelection::default(),
+            &LocalBuildConfig::default(),
+        )
+        .expect("cruiser");
+        assert!(!wiki.skills.is_empty(), "cruiser has skills");
+        assert!(
+            !wiki.upgrades.is_empty(),
+            "erie upgrades: {:?}",
+            wiki.upgrades.iter().map(|u| u.key.clone()).collect::<Vec<_>>()
+        );
+        assert!(!wiki.flags.is_empty());
+        assert!(!wiki.consumables.is_empty());
     }
 }

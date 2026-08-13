@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.wowsinfo.libwowsinfo.ui.WoWsInfoTheme
 import com.wowsinfo.libwowsinfo.ui.wiki.WikiShipDetailScreen
 
@@ -68,6 +69,21 @@ class WikiShipDetailActivity : ComponentActivity() {
                             },
                             onCompare = { shipIds ->
                                 core.update(Event.LoadLocalCompare(shipIds))
+                            },
+                            onToggleSkill = { key ->
+                                core.update(Event.ToggleLocalSkill(key))
+                            },
+                            onToggleUpgrade = { key ->
+                                core.update(Event.ToggleLocalUpgrade(key))
+                            },
+                            onToggleFlag = { key ->
+                                core.update(Event.ToggleLocalFlag(key))
+                            },
+                            onSetHp = { fraction ->
+                                core.update(Event.SetLocalHp(fraction))
+                            },
+                            onSetSpotted = { spotted ->
+                                core.update(Event.SetLocalSpotted(spotted))
                             },
                             modifier = Modifier.fillMaxSize().safeDrawingPadding(),
                         )

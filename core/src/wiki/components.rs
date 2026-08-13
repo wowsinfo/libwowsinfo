@@ -163,13 +163,6 @@ fn as_i64(json: &Value, key: &str) -> i64 {
     json.get(key).and_then(Value::as_i64).unwrap_or(0)
 }
 
-fn as_str(json: &Value, key: &str) -> String {
-    json.get(key)
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string()
-}
-
 /// Parse one `guns`/`launchers` entry.
 pub(crate) fn parse_weapon(json: &Value) -> WeaponInfo {
     WeaponInfo {

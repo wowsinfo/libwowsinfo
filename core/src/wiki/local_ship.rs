@@ -8,7 +8,6 @@ use std::collections::HashSet;
 
 use facet::Facet;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::aircraft_views::{aircraft_slot_views, air_support_plane, AircraftDetail, AircraftSlotView};
 use super::gamedata::{GameData, ShipInfo};

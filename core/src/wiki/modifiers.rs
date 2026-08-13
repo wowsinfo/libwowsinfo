@@ -135,6 +135,9 @@ pub struct AdjustedStats {
     pub aa_dps: f64,
     pub battery_capacity: f64,
     pub battery_regen: f64,
+    /// Multipliers for consumable reload / work time (applied per consumable).
+    pub consumable_reload_mult: f64,
+    pub consumable_work_mult: f64,
 }
 
 impl Default for AdjustedStats {
@@ -155,6 +158,8 @@ impl Default for AdjustedStats {
             aa_dps: 0.0,
             battery_capacity: 0.0,
             battery_regen: 0.0,
+            consumable_reload_mult: 1.0,
+            consumable_work_mult: 1.0,
         }
     }
 }
@@ -178,11 +183,6 @@ pub fn apply_modifiers(
     mods: &ModifierSet,
     hp_fraction: f64,
 ) -> AdjustedStats {
-    let hull = &build.hull;
-    let main = &build.main_battery;
-    let torps = &build.torpedoes;
-    let secondaries = &build.secondaries;
-
     let main = build.main_battery.as_ref();
     let torps = build.torpedoes.as_ref();
     let secondaries = build.secondaries.as_ref();
@@ -265,6 +265,8 @@ pub fn apply_modifiers(
         aa_dps,
         battery_capacity,
         battery_regen,
+        consumable_reload_mult: mods.multiply(ship_class, "ConsumableReloadTime"),
+        consumable_work_mult: mods.multiply(ship_class, "ConsumablesWorkTime"),
     }
 }
 

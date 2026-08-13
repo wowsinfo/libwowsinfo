@@ -163,12 +163,27 @@ pub fn skill_views(
                 tier,
                 trigger_type: skill.trigger_type.clone(),
                 selected: selected.contains(key),
-                summary: modifier_summary(lang, &ship.r#type, &skill.modifiers),
+                summary: skill_summary(lang, &ship.r#type, skill),
             })
         })
         .collect();
     out.sort_by(|a, b| a.tier.cmp(&b.tier).then(a.name.cmp(&b.name)));
     out
+}
+
+fn skill_summary(lang: &LangMap, ship_class: &str, skill: &super::gamedata::SkillInfo) -> String {
+    let base = modifier_summary(lang, ship_class, &skill.modifiers);
+    let trigger = modifier_summary(lang, ship_class, &skill.trigger_modifiers);
+    let condition = match skill.trigger_type.as_str() {
+        "entityIsVisibleTrigger" => Some("While spotted"),
+        "entityIsInvisibleTrigger" => Some("While unspotted"),
+        _ => None,
+    };
+    match (base.is_empty(), condition, trigger.is_empty()) {
+        (true, Some(label), false) => format!("{label}: {trigger}"),
+        (false, Some(label), false) => format!("{base} · {label}: {trigger}"),
+        (_, _, _) => base,
+    }
 }
 
 fn upgrade_applies(ship: &ShipInfo, upgrade: &ModernizationInfo) -> bool {
@@ -238,7 +253,7 @@ pub fn flag_views(
 #[must_use]
 pub fn combined_modifiers(
     data: &GameData,
-    ship: &ShipInfo,
+    _ship: &ShipInfo,
     config: &LocalBuildConfig,
 ) -> ModifierSet {
     let mut combined = ModifierSet::default();
@@ -289,6 +304,7 @@ mod tests {
             },
             "abilities": {
                 "PCY006_SmokeGenerator": {
+                    "id": 9001, "icon": "PCY006_SmokeGenerator",
                     "name": "IDS_SMOKE", "description": "IDS_SMOKE_DESC",
                     "abilities": {
                         "Cruiser": {"reloadTime": 120.0, "workTime": 30.0, "numConsumables": 3}
@@ -297,6 +313,7 @@ mod tests {
             },
             "skills": {
                 "TriggerGmReload": {
+                    "id": 9002,
                     "name": "IDS_SKILL", "description": "IDS_SKILL_DESC",
                     "tier": {"Cruiser": 3},
                     "modifiers": {},
@@ -308,6 +325,7 @@ mod tests {
             },
             "modernizations": {
                 "PCM001": {
+                    "id": 9003,
                     "name": "IDS_U", "description": "IDS_U_DESC", "slot": 1,
                     "costCR": 500, "level": [8], "type": ["Cruiser"], "nation": ["USA"],
                     "modifiers": {"GMShotDelay": 0.88}
@@ -315,6 +333,7 @@ mod tests {
             },
             "exteriors": {
                 "PCEF005_SM_SignalFlag": {
+                    "id": 9004,
                     "type": "Flags", "name": "IDS_F", "description": "IDS_F_DESC",
                     "costCR": 1000, "modifiers": {"speedCoef": 1.05}
                 }
@@ -344,6 +363,11 @@ mod tests {
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].tier, 3);
         assert_eq!(skills[0].trigger_type, "entityIsVisibleTrigger");
+        assert!(
+            skills[0].summary.contains("While spotted"),
+            "trigger summary: {}",
+            skills[0].summary
+        );
 
         let upgrades = upgrade_views(&data, &lang, ship, &HashSet::new());
         assert_eq!(upgrades.len(), 1);
@@ -351,7 +375,7 @@ mod tests {
 
         let flags = flag_views(&data, &lang, ship, &HashSet::new());
         assert_eq!(flags.len(), 1);
-        assert_eq!(flags[0].summary, "Speed +5%");
+        assert_eq!(flags[0].summary, "speedCoef +5%");
 
         let config = LocalBuildConfig {
             skills: HashSet::from(["TriggerGmReload".to_string()]),

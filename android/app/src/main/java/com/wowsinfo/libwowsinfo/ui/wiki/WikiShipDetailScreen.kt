@@ -51,6 +51,11 @@ fun WikiShipDetailScreen(
     onShipClick: (ULong) -> Unit,
     onSelectModule: (slot: String, index: Long) -> Unit,
     onCompare: (List<ULong>) -> Unit,
+    onToggleSkill: (String) -> Unit,
+    onToggleUpgrade: (String) -> Unit,
+    onToggleFlag: (String) -> Unit,
+    onSetHp: (Double) -> Unit,
+    onSetSpotted: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -70,20 +75,24 @@ fun WikiShipDetailScreen(
             if (ship.modules.isNotEmpty()) {
                 item { ModuleSelectorEntry(ship) { slot, index -> onSelectModule(slot, index) } }
             }
+            item { ConditionsSection(ship.hpFraction, ship.spotted, onSetHp, onSetSpotted) }
             ship.hull?.let { hull ->
-                item { SurvivabilitySection(hull) }
+                item { SurvivabilitySection(hull, ship.adjusted) }
+            }
+            if (ship.consumables.isNotEmpty()) {
+                item { ConsumablesSection(ship.consumables, ship.adjusted) }
             }
             ship.mainBattery?.let { battery ->
-                item { MainBatterySection(battery, ship.penetrationCurves) }
+                item { MainBatterySection(battery, ship.adjusted, ship.penetrationCurves) }
             }
             ship.secondaries?.let { battery ->
-                item { SecondarySection(battery) }
+                item { SecondarySection(battery, ship.adjusted) }
             }
             ship.torpedoes?.let { torpedo ->
-                item { TorpedoSection(torpedo) }
+                item { TorpedoSection(torpedo, ship.adjusted) }
             }
             ship.airDefense?.let { airDefense ->
-                item { AirDefenseSection(airDefense) }
+                item { AirDefenseSection(airDefense, ship.adjusted) }
             }
             ship.airSupport?.let { airSupport ->
                 item { AirSupportSection(airSupport, ship.airSupportPlane) }
@@ -101,11 +110,20 @@ fun WikiShipDetailScreen(
                 item(key = "aircraft_${slot.slot}") { AircraftSection(slot) }
             }
             ship.hull?.let { hull ->
-                item { MobilitySection(hull.mobility) }
-                item { ConcealmentSection(hull.visibility) }
+                item { MobilitySection(hull.mobility, ship.adjusted) }
+                item { ConcealmentSection(hull.visibility, ship.adjusted) }
                 hull.submarineBattery?.let { battery ->
                     item { SubmarineBatterySection(battery) }
                 }
+            }
+            if (ship.skills.isNotEmpty()) {
+                item { SkillsSection(ship.skills, onToggleSkill) }
+            }
+            if (ship.upgrades.isNotEmpty()) {
+                item { UpgradesSection(ship.upgrades, onToggleUpgrade) }
+            }
+            if (ship.flags.isNotEmpty()) {
+                item { FlagsSection(ship.flags, onToggleFlag) }
             }
             if (ship.similarShips.isNotEmpty()) {
                 item { SimilarShipsHeader(ship, compare, onCompare) }
