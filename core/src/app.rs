@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     APP_KEY, api,
     data::{self, Server},
-    downloader, models,
+    downloader, models, wiki,
 };
 
 type HttpCap = crux_http::Http<Effect, Event>;
@@ -32,8 +32,10 @@ use effects::{
     on_wiki_loaded,
 };
 use handlers::{
-    init, load_ship_wiki, load_warship, load_wiki, refresh, search, search_clan, select,
-    select_clan, set_server,
+    init, load_local_compare, load_local_ship_wiki, load_local_warships, load_ship_wiki,
+    load_warship, load_wiki, refresh, search, search_clan, select, select_clan,
+    select_local_ship_module, set_local_data, set_local_hp, set_local_spotted, set_server,
+    toggle_local_flag, toggle_local_skill, toggle_local_upgrade,
 };
 
 /// Startup configuration supplied by the shell.
@@ -98,6 +100,46 @@ pub enum Event {
     /// Load a ship's full wiki entry (`/wows/encyclopedia/ships/?ship_id=`).
     LoadShipWiki {
         ship_id: u64,
+    },
+    /// Load the bundled `wowsinfo.json` and `lang.json` for local wiki mode.
+    SetLocalData {
+        ships: String,
+        lang: String,
+    },
+    /// Fill the warship encyclopedia from the local game data.
+    LoadLocalWarships,
+    /// Build the local wiki entry for one ship from `wowsinfo.json`.
+    LoadLocalShipWiki {
+        ship_id: u64,
+    },
+    /// Change a module slot of the currently selected local ship.
+    SelectLocalShipModule {
+        slot: String,
+        index: i64,
+    },
+    /// Build a local comparison table for the given ships.
+    LoadLocalCompare {
+        ship_ids: Vec<u64>,
+    },
+    /// Toggle a commander skill in the local ship build.
+    ToggleLocalSkill {
+        key: String,
+    },
+    /// Toggle a module upgrade in the local ship build.
+    ToggleLocalUpgrade {
+        key: String,
+    },
+    /// Toggle a signal flag in the local ship build.
+    ToggleLocalFlag {
+        key: String,
+    },
+    /// Set the simulated HP fraction (0..1) for conditional skills.
+    SetLocalHp {
+        fraction: f64,
+    },
+    /// Set whether the ship is spotted (drives trigger skills).
+    SetLocalSpotted {
+        spotted: bool,
     },
     /// Persisted the server preference.
     ServerSaved,
@@ -172,6 +214,13 @@ pub struct ViewModel {
     pub wiki_commander_skills: HashMap<u64, models::CommanderSkill>,
     #[serde(default)]
     pub selected_ship_wiki: Option<models::ShipWiki>,
+    #[serde(default)]
+    pub local_ship: Option<wiki::LocalShipWiki>,
+    #[serde(default)]
+    pub local_compare: Option<wiki::LocalCompare>,
+    /// True once the bundled game data has been parsed successfully.
+    #[serde(default)]
+    pub local_data_ready: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Facet, PartialEq)]
@@ -240,6 +289,17 @@ pub struct Model {
     downloading_wiki: HashSet<WikiDataset>,
     selected_ship_wiki: Option<models::ShipWiki>,
     pending_ship_wiki_id: Option<u64>,
+    local_data: Option<wiki::GameData>,
+    local_lang: wiki::LangMap,
+    local_selection: wiki::ModuleSelection,
+    local_ship: Option<wiki::LocalShipWiki>,
+    local_ship_id: Option<u64>,
+    local_compare: Option<wiki::LocalCompare>,
+    local_skills: HashSet<String>,
+    local_upgrades: HashSet<String>,
+    local_flags: HashSet<String>,
+    local_hp: f64,
+    local_spotted: bool,
     downloading_achievements: bool,
     /// True while the paginated ship encyclopedia download is in progress.
     downloading_warship: bool,
@@ -267,6 +327,18 @@ impl AppTrait for App {
             Event::LoadWiki { dataset } => load_wiki(model, dataset),
             Event::LoadWarship => load_warship(model),
             Event::LoadShipWiki { ship_id } => load_ship_wiki(model, ship_id),
+            Event::SetLocalData { ships, lang } => set_local_data(model, ships, lang),
+            Event::LoadLocalWarships => load_local_warships(model),
+            Event::LoadLocalShipWiki { ship_id } => load_local_ship_wiki(model, ship_id),
+            Event::SelectLocalShipModule { slot, index } => {
+                select_local_ship_module(model, slot, index)
+            }
+            Event::LoadLocalCompare { ship_ids } => load_local_compare(model, ship_ids),
+            Event::ToggleLocalSkill { key } => toggle_local_skill(model, key),
+            Event::ToggleLocalUpgrade { key } => toggle_local_upgrade(model, key),
+            Event::ToggleLocalFlag { key } => toggle_local_flag(model, key),
+            Event::SetLocalHp { fraction } => set_local_hp(model, fraction),
+            Event::SetLocalSpotted { spotted } => set_local_spotted(model, spotted),
             Event::ServerSaved => render::render(),
             Event::NowLoaded(_) => render::render(),
             Event::GameVersionLoaded(outcome) => on_game_version_loaded(model, outcome),
@@ -312,6 +384,9 @@ impl AppTrait for App {
             wiki_consumables: model.wiki_consumables.clone(),
             wiki_commander_skills: model.wiki_commander_skills.clone(),
             selected_ship_wiki: model.selected_ship_wiki.clone(),
+            local_ship: model.local_ship.clone(),
+            local_compare: model.local_compare.clone(),
+            local_data_ready: model.local_data.is_some(),
         }
     }
 }

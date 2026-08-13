@@ -6,6 +6,8 @@ use std::collections::HashMap;
 
 use serde_json::{Map, Value};
 
+use super::modifiers::{parse_modifiers, ModifierSet};
+
 /// One consumable slot (`consumables[][]`).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ConsumableInfo {
@@ -77,6 +79,47 @@ pub struct AchievementInfo {
     pub constants: Value,
 }
 
+/// One modernization (module upgrade) entry (`modernizations.<key>`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ModernizationInfo {
+    pub key: String,
+    pub name: String,
+    pub description: String,
+    pub slot: i64,
+    pub cost_cr: i64,
+    pub levels: Vec<i64>,
+    pub r#types: Vec<String>,
+    pub nations: Vec<String>,
+    pub ships: Vec<u64>,
+    pub excludes: Vec<u64>,
+    pub modifiers: ModifierSet,
+}
+
+/// One flag / signal exterior (`exteriors.<key>` with type `Flags`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct FlagInfo {
+    pub key: String,
+    pub name: String,
+    pub description: String,
+    pub cost_cr: i64,
+    pub modifiers: ModifierSet,
+}
+
+/// One commander skill (`skills.<key>`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SkillInfo {
+    pub key: String,
+    pub name: String,
+    pub description: String,
+    /// Skill tier per ship class (`tier: { "Cruiser": 3 }`).
+    pub tiers: HashMap<String, i64>,
+    pub modifiers: ModifierSet,
+    /// Trigger condition (`LogicTrigger.triggerType`), empty when passive.
+    pub trigger_type: String,
+    /// Modifiers applied while the trigger condition is active.
+    pub trigger_modifiers: ModifierSet,
+}
+
 /// The parsed `wowsinfo.json` datasets.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct GameData {
@@ -85,6 +128,16 @@ pub struct GameData {
     pub achievements: HashMap<u64, AchievementInfo>,
     /// Ship class -> tiers -> columns of commander skills.
     pub command_skills: HashMap<String, Vec<Vec<CommanderSkill>>>,
+    /// Shells, bombs and torpedoes keyed by projectile name.
+    pub projectiles: HashMap<String, super::projectile::ProjectileInfo>,
+    /// Carrier aircraft keyed by aircraft name.
+    pub aircraft: HashMap<String, super::aircraft::AircraftInfo>,
+    /// Module upgrades keyed by modernization name.
+    pub modernizations: HashMap<String, ModernizationInfo>,
+    /// Signal flags (exteriors with type `Flags`).
+    pub flags: Vec<FlagInfo>,
+    /// Commander skills keyed by skill name.
+    pub skills: HashMap<String, SkillInfo>,
 }
 
 fn get<'a>(json: &'a Value, key: &str, default: &'a Value) -> &'a Value {
@@ -100,6 +153,27 @@ fn str_field(json: &Value, key: &str) -> String {
 
 fn i64_field(json: &Value, key: &str) -> i64 {
     json.get(key).and_then(Value::as_i64).unwrap_or(0)
+}
+
+fn u64_list(json: &Value, key: &str) -> Vec<u64> {
+    json.get(key)
+        .and_then(Value::as_array)
+        .map(|arr| arr.iter().filter_map(Value::as_u64).collect())
+        .unwrap_or_default()
+}
+
+fn str_list(json: &Value, key: &str) -> Vec<String> {
+    json.get(key)
+        .and_then(Value::as_array)
+        .map(|arr| arr.iter().filter_map(Value::as_str).map(ToOwned::to_owned).collect())
+        .unwrap_or_default()
+}
+
+fn i64_list(json: &Value, key: &str) -> Vec<i64> {
+    json.get(key)
+        .and_then(Value::as_array)
+        .map(|arr| arr.iter().filter_map(Value::as_i64).collect())
+        .unwrap_or_default()
 }
 
 /// Parse a `wowsinfo.json` document into typed game data.
@@ -275,10 +349,92 @@ pub fn parse_game_data(json: &Value) -> GameData {
         })
         .unwrap_or_default();
 
+    let modernizations = get(json, "modernizations", &empty)
+        .as_object()
+        .map(|map| {
+            map.iter()
+                .map(|(key, value)| {
+                    (
+                        key.clone(),
+                        ModernizationInfo {
+                            key: key.clone(),
+                            name: str_field(value, "name"),
+                            description: str_field(value, "description"),
+                            slot: i64_field(value, "slot"),
+                            cost_cr: i64_field(value, "costCR"),
+                            levels: i64_list(value, "level"),
+                            r#types: str_list(value, "type"),
+                            nations: str_list(value, "nation"),
+                            ships: u64_list(value, "ships"),
+                            excludes: u64_list(value, "excludes"),
+                            modifiers: parse_modifiers(get(value, "modifiers", &Value::Object(Map::new()))),
+                        },
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let flags = get(json, "exteriors", &empty)
+        .as_object()
+        .map(|map| {
+            map.iter()
+                .filter(|(_, value)| str_field(value, "type") == "Flags")
+                .map(|(key, value)| FlagInfo {
+                    key: key.clone(),
+                    name: str_field(value, "name"),
+                    description: str_field(value, "description"),
+                    cost_cr: i64_field(value, "costCR"),
+                    modifiers: parse_modifiers(get(value, "modifiers", &Value::Object(Map::new()))),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let skills = get(json, "skills", &empty)
+        .as_object()
+        .map(|map| {
+            map.iter()
+                .map(|(key, value)| {
+                    let trigger = value.get("LogicTrigger").unwrap_or(&Value::Null);
+                    (
+                        key.clone(),
+                        SkillInfo {
+                            key: key.clone(),
+                            name: str_field(value, "name"),
+                            description: str_field(value, "description"),
+                            tiers: value
+                                .get("tier")
+                                .and_then(Value::as_object)
+                                .map(|map| {
+                                    map.iter()
+                                        .filter_map(|(class, tier)| {
+                                            tier.as_i64().map(|t| (class.clone(), t))
+                                        })
+                                        .collect()
+                                })
+                                .unwrap_or_default(),
+                            modifiers: parse_modifiers(get(value, "modifiers", &Value::Object(Map::new()))),
+                            trigger_type: str_field(trigger, "triggerType"),
+                            trigger_modifiers: parse_modifiers(
+                                get(trigger, "modifiers", &Value::Object(Map::new())),
+                            ),
+                        },
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     GameData {
         ships,
         abilities,
         achievements,
         command_skills,
+        projectiles: super::projectile::parse_projectiles(get(json, "projectiles", &empty)),
+        aircraft: super::aircraft::parse_aircrafts(get(json, "aircrafts", &empty)),
+        modernizations,
+        flags,
+        skills,
     }
 }

@@ -7,10 +7,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,29 +34,40 @@ class WikiShipDetailActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background,
                 ) {
                     val viewModel by core.viewModel.collectAsState()
-                    LaunchedEffect(viewModel.selectedShipWiki, shipId) {
-                        if (shipId != null && viewModel.selectedShipWiki?.shipId != shipId) {
-                            core.update(Event.LoadShipWiki(shipId))
+                    LaunchedEffect(viewModel.localShip, viewModel.localDataReady, shipId) {
+                        if (viewModel.localDataReady &&
+                            shipId != null &&
+                            viewModel.localShip?.shipId != shipId
+                        ) {
+                            core.update(Event.LoadLocalShipWiki(shipId))
                         }
                     }
-                    val ship = viewModel.selectedShipWiki?.takeIf { shipId == null || it.shipId == shipId }
+                    val ship = viewModel.localShip?.takeIf { shipId == null || it.shipId == shipId }
                     if (ship == null) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
+                            androidx.compose.material3.Text(
+                                text = if (viewModel.localDataReady) "Loading ship…" else "Loading game data…",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
                         }
                     } else {
-                        val similar = viewModel.warship.values
-                            .filter { it.tier == ship.tier && it.type == ship.type && it.shipId != ship.shipId }
-                            .sortedBy { it.name }
                         WikiShipDetailScreen(
                             ship = ship,
-                            similarShips = similar,
+                            compare = viewModel.localCompare,
                             onBack = { finish() },
                             onShipClick = { id ->
                                 startActivity(
                                     Intent(this, WikiShipDetailActivity::class.java)
                                         .putExtra(EXTRA_SHIP_ID, id.toString()),
                                 )
+                            },
+                            onSelectModule = { slot, index ->
+                                core.update(Event.SelectLocalShipModule(slot, index))
+                            },
+                            onCompare = { shipIds ->
+                                core.update(Event.LoadLocalCompare(shipIds))
                             },
                             modifier = Modifier.fillMaxSize().safeDrawingPadding(),
                         )

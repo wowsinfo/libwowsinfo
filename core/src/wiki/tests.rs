@@ -108,3 +108,87 @@ fn game_data_is_tolerant_of_missing_sections() {
     assert!(data.achievements.is_empty());
     assert!(data.command_skills.is_empty());
 }
+
+#[test]
+fn real_wowsinfo_json_parses_when_available() {
+    // Smoke test against the shipped game data; skipped in CI without the env var.
+    let Some(path) = std::env::var_os("WOWSINFO_JSON") else {
+        return;
+    };
+    let raw = std::fs::read_to_string(path).expect("read wowsinfo.json");
+    let json: serde_json::Value = serde_json::from_str(&raw).expect("valid json");
+    let data = parse_game_data(&json);
+    assert!(data.ships.len() > 1000, "ships: {}", data.ships.len());
+    assert!(data.projectiles.len() > 2000, "projectiles: {}", data.projectiles.len());
+    assert!(data.aircraft.len() > 500, "aircraft: {}", data.aircraft.len());
+    assert!(data.abilities.len() > 100);
+    assert!(data.achievements.len() > 100);
+
+    let lang_path = std::env::var_os("WOWSINFO_LANG");
+    if let Some(lang_path) = lang_path {
+        let raw = std::fs::read_to_string(lang_path).expect("read lang.json");
+        let json: serde_json::Value = serde_json::from_str(&raw).expect("valid lang json");
+        let lang = parse_lang(&json, "en");
+        assert!(lang.len() > 10_000, "lang entries: {}", lang.len());
+    }
+
+    // Every ship resolves to a local wiki entry with a hull.
+    let sample = data.ships.iter().next().expect("at least one ship");
+    let lang = LangMap::default();
+    let wiki = build_local_ship_wiki(
+        &data,
+        &lang,
+        *sample.0,
+        ModuleSelection::default(),
+        &LocalBuildConfig::default(),
+    );
+    assert!(wiki.is_some(), "ship {} builds", sample.1.index);
+
+    // Compare + carrier views work against the real data.
+    let compare = build_local_compare(&data, &lang, &[*sample.0]);
+    assert!(compare.is_some());
+    let carrier = data
+        .ships
+        .iter()
+        .find(|(_, ship)| ship.r#type == "AirCarrier")
+        .map(|(id, _)| *id);
+    if let Some(carrier_id) = carrier {
+        let wiki = build_local_ship_wiki(
+            &data,
+            &lang,
+            carrier_id,
+            ModuleSelection::default(),
+            &LocalBuildConfig::default(),
+        );
+        assert!(wiki.is_some());
+        assert!(!wiki.unwrap().aircraft.is_empty(), "carrier has squadrons");
+    }
+    // Lexington (PASA108) must expose fighter/torpedo/dive bomber slots.
+    if let Some(ship) = data.ships.get(&418_170_2640) {
+        let wiki = build_local_ship_wiki(
+            &data,
+            &lang,
+            418_170_2640,
+            ModuleSelection::default(),
+            &LocalBuildConfig::default(),
+        )
+            .expect("lexington");
+        assert!(
+            wiki.aircraft.len() >= 3,
+            "lexington aircraft slots: {:?}",
+            wiki.aircraft.iter().map(|s| s.slot.clone()).collect::<Vec<_>>()
+        );
+        for slot in &wiki.aircraft {
+            let resolved = slot
+                .options
+                .first()
+                .and_then(|option| option.aircraft.as_ref());
+            assert!(
+                resolved.is_some(),
+                "slot {} aircraft lookup failed",
+                slot.slot
+            );
+        }
+        let _ = ship;
+    }
+}

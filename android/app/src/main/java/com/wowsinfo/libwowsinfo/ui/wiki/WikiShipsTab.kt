@@ -1,6 +1,7 @@
 package com.wowsinfo.libwowsinfo.ui.wiki
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
@@ -52,11 +53,24 @@ private fun RowShip(ship: EncyclopediaShip, onClick: () -> Unit) {
             .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AsyncImage(
-            model = ship.icon,
-            contentDescription = null,
-            modifier = Modifier.padding(end = 8.dp),
-        )
+        if (ship.icon.isBlank()) {
+            Box(
+                modifier = Modifier.padding(end = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = ship.name.take(6).uppercase(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = com.wowsinfo.libwowsinfo.ui.chartColor(ship.tier.toInt()),
+                )
+            }
+        } else {
+            AsyncImage(
+                model = ship.icon,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "T${ship.tier} ${ship.name}",

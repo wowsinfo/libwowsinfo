@@ -1,45 +1,56 @@
 package com.wowsinfo.libwowsinfo.ui.wiki
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import com.wowsinfo.libwowsinfo.ArtilleryProfile
-import com.wowsinfo.libwowsinfo.EncyclopediaShip
-import com.wowsinfo.libwowsinfo.ShipWiki
-import com.wowsinfo.libwowsinfo.ui.BarRow
+import com.wowsinfo.libwowsinfo.LocalShipWiki
+import com.wowsinfo.libwowsinfo.LocalCompare
+import com.wowsinfo.libwowsinfo.SimilarShip
 import com.wowsinfo.libwowsinfo.ui.SectionTitle
 import com.wowsinfo.libwowsinfo.ui.Stat
 import com.wowsinfo.libwowsinfo.ui.chartColor
 import com.wowsinfo.libwowsinfo.ui.formatNumber
 
-/** Full wiki ship detail: profile bars, armour, weapons, mobility, similar ships. */
+private val TIER_ROMAN = listOf(
+    "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI",
+)
+
+fun tierRoman(tier: Long): String = TIER_ROMAN.getOrElse(tier.toInt() - 1) { tier.toString() }
+
+/** Full wiki ship detail from the bundled `wowsinfo.json` game data. */
 @Composable
 fun WikiShipDetailScreen(
-    ship: ShipWiki,
-    similarShips: List<EncyclopediaShip>,
+    ship: LocalShipWiki,
+    compare: LocalCompare?,
     onBack: () -> Unit,
     onShipClick: (ULong) -> Unit,
+    onSelectModule: (slot: String, index: Long) -> Unit,
+    onCompare: (List<ULong>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -47,275 +58,260 @@ fun WikiShipDetailScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("‹ Wiki") }
+            TextButton(onClick = onBack) { Text("‹ Back") }
             Text(
-                text = ship.name,
+                text = "${ship.index} · ${ship.shipId}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
             )
         }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item { ShipHeader(ship) }
-            item { ProfileBars(ship) }
-            item { ArmourSection(ship) }
-            ship.profile.artillery?.let { artillery ->
-                item { ArtillerySection(artillery) }
-                artillery.shells.firstOrNull { it.type == "AP" }?.let { ap ->
-                    item {
-                        ShellBallisticsSection(
-                            shell = ap,
-                            maxRangeKm = artillery.distance,
-                        )
-                    }
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            item { ShipTitleCard(ship, onShipClick) }
+            if (ship.modules.isNotEmpty()) {
+                item { ModuleSelectorEntry(ship) { slot, index -> onSelectModule(slot, index) } }
+            }
+            ship.hull?.let { hull ->
+                item { SurvivabilitySection(hull) }
+            }
+            ship.mainBattery?.let { battery ->
+                item { MainBatterySection(battery, ship.penetrationCurves) }
+            }
+            ship.secondaries?.let { battery ->
+                item { SecondarySection(battery) }
+            }
+            ship.torpedoes?.let { torpedo ->
+                item { TorpedoSection(torpedo) }
+            }
+            ship.airDefense?.let { airDefense ->
+                item { AirDefenseSection(airDefense) }
+            }
+            ship.airSupport?.let { airSupport ->
+                item { AirSupportSection(airSupport, ship.airSupportPlane) }
+            }
+            ship.pinger?.let { pinger ->
+                item { PingerSection(pinger) }
+            }
+            ship.depthCharges?.let { depth ->
+                item { DepthChargeSection(depth) }
+            }
+            ship.specialAbility?.let { special ->
+                item { SpecialSection(special) }
+            }
+            ship.aircraft.forEach { slot ->
+                item(key = "aircraft_${slot.slot}") { AircraftSection(slot) }
+            }
+            ship.hull?.let { hull ->
+                item { MobilitySection(hull.mobility) }
+                item { ConcealmentSection(hull.visibility) }
+                hull.submarineBattery?.let { battery ->
+                    item { SubmarineBatterySection(battery) }
                 }
             }
-            ship.profile.torpedoes?.let { torpedoes ->
-                item { TorpedoSection(torpedoes) }
-            }
-            ship.profile.antiAircraft?.let { aa ->
-                item { AntiAircraftSection(aa) }
-            }
-            item { MobilitySection(ship) }
-            if (similarShips.isNotEmpty()) {
-                item { SimilarShipsSection(similarShips, onShipClick) }
+            if (ship.similarShips.isNotEmpty()) {
+                item { SimilarShipsHeader(ship, compare, onCompare) }
+                items(ship.similarShips, key = { it.shipId.toString() }) { similar ->
+                    SimilarShipRow(similar, onClick = { onShipClick(similar.shipId) })
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ShipHeader(ship: ShipWiki) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        AsyncImage(
-            model = ship.image,
-            contentDescription = ship.name,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 48.dp),
-        )
-        Text(
-            text = "T${ship.tier} ${ship.name}",
-            style = MaterialTheme.typography.titleLarge,
-            color = if (ship.isPremium) com.wowsinfo.libwowsinfo.ui.player.PremiumColor
-            else MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = "${ship.nation.replace('_', ' ')} · ${ship.type}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (ship.description.isNotEmpty()) {
+private fun ShipTitleCard(ship: LocalShipWiki, onShipClick: (ULong) -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                text = ship.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+                text = ship.name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
-
-/** The seven 0-100 profile bars like the original app's WarshipStat. */
-@Composable
-private fun ProfileBars(ship: ShipWiki) {
-    val profile = ship.profile
-    val entries = listOf(
-        "Survivability" to profile.armour.total,
-        "Artillery" to profile.weaponry.artillery,
-        "Torpedoes" to profile.weaponry.torpedoes,
-        "Anti-Aircraft" to profile.weaponry.antiAircraft,
-        "Maneuverability" to profile.mobility.total,
-        "Aircraft" to profile.weaponry.aircraft,
-        "Concealment" to profile.concealment.total,
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionTitle("Profile")
-        entries.forEachIndexed { index, (label, value) ->
-            BarRow(
-                label = label,
-                valueText = value.toString(),
-                fraction = value.coerceIn(0, 100) / 100.0,
-                color = chartColor(index),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ArmourSection(ship: ShipWiki) {
-    val armour = ship.profile.armour
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionTitle("Armour")
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-        ) {
-            Stat("Rating", formatNumber(armour.total), modifier = Modifier.weight(1f))
-            Stat("Health", formatNumber(armour.health), modifier = Modifier.weight(1f))
-        }
-        listOf(
-            "Citadel" to armour.citadel,
-            "Deck" to armour.deck,
-            "Casemate" to armour.casemate,
-            "Extremities" to armour.extremities,
-        ).forEach { (label, value) ->
-            val text = if (value.max > 0) "${value.min}-${value.max} mm" else "n/a"
-            BarRow(
-                label = label,
-                valueText = text,
-                fraction = 0.0,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ArtillerySection(artillery: ArtilleryProfile) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionTitle("Main battery")
-        artillery.slots.forEachIndexed { index, slot ->
-            BarRow(
-                label = "Turret ${index + 1}",
-                valueText = "${slot.barrels}x${slot.guns}",
-                fraction = 1.0,
-                color = chartColor(1),
-            )
-            Text(
-                slot.name,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-        ) {
-            Stat("Rate", "${artillery.gunRate}/min", modifier = Modifier.weight(1f))
-            Stat("Dispersion", formatNumber(artillery.maxDispersion), modifier = Modifier.weight(1f))
-            Stat("Range", "${artillery.distance} km", modifier = Modifier.weight(1f))
-        }
-        artillery.shells.forEachIndexed { index, shell ->
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AssistChip(onClick = {}, label = { Text("Tier ${tierRoman(ship.tier)}") })
+                AssistChip(onClick = {}, label = { Text(ship.shipType) })
+                AssistChip(onClick = {}, label = { Text(ship.region) })
+                if (ship.premium) AssistChip(onClick = {}, label = { Text("Premium") })
+                if (ship.special) AssistChip(onClick = {}, label = { Text("Special") })
+            }
+            ship.description.takeIf { it.isNotBlank() && !it.startsWith("IDS_") }?.let {
                 Text(
-                    text = shell.name,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = chartColor(if (shell.type == "AP") 0 else 5),
-                )
-                Text(
-                    text = "DMG ${formatNumber(shell.damage)} · Mass ${shell.bulletMass} kg · " +
-                        "Speed ${shell.bulletSpeed.toInt()} m/s" +
-                        shell.burnProbability?.let { " · Fire $it%" }.orEmpty(),
+                    text = it,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun TorpedoSection(torpedoes: com.wowsinfo.libwowsinfo.TorpedoProfile) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SectionTitle("Torpedoes")
-        Text(
-            "Range ${torpedoes.distance} km",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        torpedoes.shells.forEach { shell ->
-            Text(
-                "${shell.name} · DMG ${formatNumber(shell.damage)}",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}
-
-@Composable
-private fun AntiAircraftSection(aa: com.wowsinfo.libwowsinfo.AntiAircraftProfile) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SectionTitle("Anti-aircraft")
-        Text(
-            "Defense ${aa.defense}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        aa.slots.forEach { slot ->
-            Text(
-                "${slot.name} · ${slot.caliber} mm · ${slot.guns} guns",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MobilitySection(ship: ShipWiki) {
-    val mobility = ship.profile.mobility
-    val concealment = ship.profile.concealment
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionTitle("Mobility & concealment")
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-        ) {
-            Stat("Speed", "${mobility.maxSpeed} kt", modifier = Modifier.weight(1f))
-            Stat("Turning", "${mobility.turningRadius} m", modifier = Modifier.weight(1f))
-            Stat("Rudder", "${mobility.rudderTime} s", modifier = Modifier.weight(1f))
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-        ) {
-            Stat("Detect (ship)", "${concealment.detectDistanceByShip} km", modifier = Modifier.weight(1f))
-            Stat("Detect (plane)", "${concealment.detectDistanceByPlane} km", modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun SimilarShipsSection(
-    ships: List<EncyclopediaShip>,
-    onShipClick: (ULong) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionTitle("Similar ships")
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(ships, key = { it.shipId.toString() }) { ship ->
-                Card(modifier = Modifier.padding(vertical = 2.dp)) {
-                    Column(
-                        modifier = Modifier.padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        AsyncImage(
-                            model = ship.icon,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxWidth(),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+            ) {
+                if (ship.costCredit > 0) {
+                    Stat("Credits", formatNumber(ship.costCredit), modifier = Modifier.weight(1f))
+                }
+                if (ship.costGold > 0) {
+                    Stat("Gold", formatNumber(ship.costGold), modifier = Modifier.weight(1f))
+                }
+                if (ship.costXp > 0) {
+                    Stat("XP", formatNumber(ship.costXp), modifier = Modifier.weight(1f))
+                }
+            }
+            if (ship.nextShips.isNotEmpty()) {
+                Text(
+                    text = "Next ships",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    ship.nextShips.forEach { nextId ->
+                        val next = nextId
+                        AssistChip(
+                            onClick = { onShipClick(next.shipId) },
+                            label = { Text("${next.index} · ${next.name}") },
                         )
-                        Text(
-                            "T${ship.tier} ${ship.name}",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        Spacer(Modifier.padding(0.dp))
                     }
                 }
             }
         }
-        AssistChip(
-            onClick = { onShipClick(ships.first().shipId) },
-            label = { Text("Compare") },
+    }
+}
+
+@Composable
+private fun ModuleSelectorEntry(ship: LocalShipWiki, onSelectModule: (String, Long) -> Unit) {
+    Column(modifier = Modifier.padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SectionTitle("Modules")
+        var open by remember { mutableStateOf(false) }
+        TextButton(onClick = { open = true }) {
+            Text("Change Ship Modules (${ship.modules.size} slots)")
+        }
+        if (open) {
+            WikiShipModulesDialog(
+                slots = ship.modules,
+                onDismiss = { open = false },
+                onSelect = { slot, index ->
+                    open = false
+                    onSelectModule(slot, index)
+                },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SimilarShipsHeader(
+    ship: LocalShipWiki,
+    compare: LocalCompare?,
+    onCompare: (List<ULong>) -> Unit,
+) {
+    var compareOpen by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        SectionTitle("Similar Ships")
+        var pickerOpen by remember { mutableStateOf(false) }
+        TextButton(onClick = { pickerOpen = true }) { Text("Compare") }
+        if (pickerOpen) {
+            SimilarShipPicker(
+                ship = ship,
+                onDismiss = { pickerOpen = false },
+                onConfirm = { selected ->
+                    pickerOpen = false
+                    compareOpen = true
+                    onCompare(listOf(ship.shipId) + selected)
+                },
+            )
+        }
+    }
+    if (compareOpen && compare != null) {
+        WikiCompareDialog(compare = compare, onDismiss = { compareOpen = false })
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SimilarShipPicker(
+    ship: LocalShipWiki,
+    onDismiss: () -> Unit,
+    onConfirm: (List<ULong>) -> Unit,
+) {
+    var selected by remember { mutableStateOf(setOf<ULong>()) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Compare up to 4 ships") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                FilterChip(
+                    selected = true,
+                    onClick = {},
+                    label = { Text("${ship.index} · ${ship.name}") },
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ship.similarShips.take(20).forEach { similar ->
+                        val checked = selected.contains(similar.shipId)
+                        FilterChip(
+                            selected = checked,
+                            enabled = checked || selected.size < 3,
+                            onClick = {
+                                selected = if (checked) {
+                                    selected - similar.shipId
+                                } else {
+                                    selected + similar.shipId
+                                }
+                            },
+                            label = { Text("${similar.index} · ${similar.name}") },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(selected.toList()) },
+                enabled = selected.isNotEmpty(),
+            ) { Text("Compare") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun SimilarShipRow(ship: SimilarShip, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = ship.index,
+            style = MaterialTheme.typography.labelMedium,
+            color = chartColor(1),
+            modifier = Modifier.weight(0.35f),
+        )
+        Text(
+            text = ship.name,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1.65f),
+        )
+        Text(
+            text = ship.nation,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
