@@ -2,12 +2,16 @@
 
 mod app;
 
+pub mod arena;
 pub mod api;
+pub mod charts;
+pub mod combat;
 pub mod data;
 pub mod downloader;
 pub mod models;
 pub mod rating;
 pub mod util;
+pub mod wiki;
 pub mod warship;
 
 pub mod ffi;
