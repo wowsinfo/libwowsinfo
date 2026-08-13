@@ -241,6 +241,7 @@ mod tests {
                 wins: 5,
                 damage_dealt: 500_000,
                 frags: 10,
+                ..Default::default()
             }),
             rating: 0.0,
             ap: 0.0,
@@ -270,6 +271,7 @@ mod tests {
                     wins: 5,
                     damage_dealt: 500_000,
                     frags: 10,
+                    ..Default::default()
                 }),
                 ..Default::default()
             },
@@ -280,6 +282,7 @@ mod tests {
                     wins: 0,
                     damage_dealt: 0,
                     frags: 0,
+                    ..Default::default()
                 }),
                 ..Default::default()
             },

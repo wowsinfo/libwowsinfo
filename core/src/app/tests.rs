@@ -88,7 +88,7 @@ fn init_requests_caches_version_and_render() {
         .filter(|e| matches!(e, Effect::Render(_)))
         .count();
     assert_eq!(http, 1);
-    assert_eq!(kv, 4);
+    assert_eq!(kv, 5);
     assert_eq!(renders, 1);
 }
 

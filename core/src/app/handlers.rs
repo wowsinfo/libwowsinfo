@@ -22,6 +22,7 @@ pub(super) fn init(model: &mut Model, config: Config) -> Command<Effect, Event> 
         kv_get_event(data::local::USER_LANGUAGE),
         kv_get_event(data::saved::WARSHIP),
         kv_get_event(data::saved::PR),
+        kv_get_event(data::saved::ACHIEVEMENT),
         HttpCap::get(api::game_version(model.server, &key))
             .expect_string()
             .build()
@@ -69,6 +70,8 @@ pub(super) fn select(model: &mut Model, account_id: u64) -> Command<Effect, Even
     model.pending_account_id = Some(account_id);
     model.pending_player = None;
     model.pending_ships = None;
+    model.achievements.clear();
+    model.clan_tag.clear();
 
     let Some(config) = model.config.clone() else {
         model.phase = Phase::Error("App not initialised".to_string());
@@ -102,6 +105,18 @@ fn player_commands(model: &mut Model, key: &str, account_id: u64) -> Vec<Command
                 .then_send(|result| Event::WarshipLoaded(http_outcome(result))),
         );
     }
+    commands.push(
+        HttpCap::get(api::player_achievement(model.server, key, account_id))
+            .expect_string()
+            .build()
+            .then_send(|result| Event::AchievementsLoaded(http_outcome(result))),
+    );
+    commands.push(
+        HttpCap::get(api::player_clan(model.server, key, account_id))
+            .expect_string()
+            .build()
+            .then_send(|result| Event::ClanLoaded(http_outcome(result))),
+    );
     commands.push(render::render());
     commands
 }

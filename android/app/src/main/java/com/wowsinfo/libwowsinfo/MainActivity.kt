@@ -17,9 +17,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.wowsinfo.libwowsinfo.core.Core
-import com.wowsinfo.libwowsinfo.ui.PlayerScreen
 import com.wowsinfo.libwowsinfo.ui.SearchScreen
 import com.wowsinfo.libwowsinfo.ui.WoWsInfoTheme
+import com.wowsinfo.libwowsinfo.ui.player.PlayerScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

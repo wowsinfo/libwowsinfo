@@ -10,11 +10,18 @@ fn select_player_assembles_stats() {
 
     let mut update = app.update(Event::SelectPlayer { account_id: 42 }, &mut model);
     assert!(matches!(model.phase, Phase::LoadingPlayer));
-    assert_eq!(update.effects.len(), 4, "player + ships + warship + render");
+    assert_eq!(update.effects.len(), 6, "player + ships + warship + achievements + clan + render");
 
     let player_body = serde_json::json!({
         "status": "ok",
-        "data": {"42": {"account_id": 42, "nickname": "Bob", "hidden_profile": false}}
+        "data": {"42": {
+            "account_id": 42,
+            "nickname": "Bob",
+            "hidden_profile": false,
+            "statistics": {
+                "pvp": {"battles": 100, "wins": 50, "damage_dealt": 5_000_000, "frags": 80}
+            }
+        }}
     });
     let ships_body = serde_json::json!({
         "status": "ok",
@@ -45,6 +52,14 @@ fn select_player_assembles_stats() {
             }
         }
     });
+    let achievements_body = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {"battle": {"1": 3, "2": 1}}}
+    });
+    let clan_body = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {"clan": {"tag": "ABC"}}}
+    });
 
     // Resolve every pending HTTP request against its endpoint.
     let requests: Vec<&mut crux_core::Request<crux_http::HttpRequest>> = update
@@ -61,6 +76,10 @@ fn select_player_assembles_stats() {
             player_body.clone()
         } else if url.contains("/wows/ships/stats/") {
             ships_body.clone()
+        } else if url.contains("/wows/account/achievements/") {
+            achievements_body.clone()
+        } else if url.contains("/wows/clans/accountinfo/") {
+            clan_body.clone()
         } else {
             warship_body.clone()
         };
@@ -74,10 +93,14 @@ fn select_player_assembles_stats() {
     assert!(matches!(model.phase, Phase::Player));
     let player = app.view(&model).player.expect("player view");
     assert_eq!(player.nickname, "Bob");
-    assert!(model.warship.contains_key(&3542005744));
-    assert_eq!(player.ships.len(), 1);
-    assert_eq!(player.ships[0].name, "Hermelin");
-    assert!(player.rating > 0.0);
+        assert!(model.warship.contains_key(&3542005744));
+        assert_eq!(player.ships.len(), 1);
+        assert_eq!(player.ships[0].name, "Hermelin");
+        assert!(player.rating > 0.0);
+        assert_eq!(player.statistics.pvp.as_ref().map(|p| p.battles), Some(100));
+        assert_eq!(player.achievements.len(), 2);
+        assert_eq!(player.clan_tag, "ABC");
+        assert_eq!(player.created_at, None);
 }
 #[test]
 fn warship_download_paginates_until_last_page() {
@@ -87,7 +110,7 @@ fn warship_download_paginates_until_last_page() {
     model.pr = downloader::local_pr();
 
     let mut update = app.update(Event::SelectPlayer { account_id: 42 }, &mut model);
-    assert_eq!(update.effects.len(), 4, "player + ships + warship + render");
+    assert_eq!(update.effects.len(), 6, "player + ships + warship + achievements + clan + render");
 
     let player_body = serde_json::json!({
         "status": "ok",
@@ -138,6 +161,14 @@ fn warship_download_paginates_until_last_page() {
             }
         }
     });
+    let achievements_body = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {"battle": {}}}
+    });
+    let clan_body = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {"clan": {"tag": "ABC"}}}
+    });
 
     let requests: Vec<&mut crux_core::Request<crux_http::HttpRequest>> = update
         .effects_mut()
@@ -154,11 +185,15 @@ fn warship_download_paginates_until_last_page() {
             warship_request = Some(request);
             continue;
         }
-        let body = if url.contains("/wows/account/info/") {
-            player_body.clone()
-        } else {
-            ships_body.clone()
-        };
+            let body = if url.contains("/wows/account/info/") {
+                player_body.clone()
+            } else if url.contains("/wows/account/achievements/") {
+                achievements_body.clone()
+            } else if url.contains("/wows/clans/accountinfo/") {
+                clan_body.clone()
+            } else {
+                ships_body.clone()
+            };
         let update = app.resolve(request, http_ok(body)).expect("resolve http");
         events.push(update.events.into_iter().next().expect("one event"));
     }
@@ -214,7 +249,7 @@ fn refresh_reloads_pr_and_reloads_player() {
 
     let update = app.update(Event::Refresh, &mut model);
     // PR + time + player + ships + render
-    assert_eq!(update.effects.len(), 6);
+    assert_eq!(update.effects.len(), 8);
     assert!(update.effects.iter().any(|e| matches!(e, Effect::Time(_))));
     assert!(update.effects.iter().any(|e| matches!(e, Effect::Http(_))));
 }

@@ -52,15 +52,29 @@ pub struct PlayerInfo {
     #[serde(default)]
     pub created_at: Option<i64>,
     #[serde(default)]
+    pub last_battle_time: Option<i64>,
+    #[serde(default)]
+    pub leveling_tier: Option<i64>,
+    #[serde(default)]
     pub hidden_profile: Option<bool>,
     #[serde(default)]
     pub statistics: Option<PlayerStatistics>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
 pub struct PlayerStatistics {
     #[serde(default)]
     pub pvp: Option<PvpStats>,
+    #[serde(default, rename = "pvp_solo")]
+    pub solo: Option<PvpStats>,
+    #[serde(default, rename = "pvp_div2")]
+    pub div2: Option<PvpStats>,
+    #[serde(default, rename = "pvp_div3")]
+    pub div3: Option<PvpStats>,
+    #[serde(default)]
+    pub pve: Option<PvpStats>,
+    #[serde(default, rename = "rank_solo")]
+    pub rank_solo: Option<PvpStats>,
 }
 
 /// Per-ship stats from `/wows/ships/stats/`.
@@ -90,7 +104,7 @@ pub struct ShipStats {
     pub avg_frags: f64,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
 pub struct PvpStats {
     #[serde(default)]
     pub battles: i64,
@@ -100,6 +114,71 @@ pub struct PvpStats {
     pub damage_dealt: i64,
     #[serde(default)]
     pub frags: i64,
+    #[serde(default)]
+    pub losses: i64,
+    #[serde(default)]
+    pub draws: i64,
+    #[serde(default)]
+    pub xp: i64,
+    #[serde(default)]
+    pub survived_battles: i64,
+    #[serde(default)]
+    pub survived_wins: i64,
+    #[serde(default)]
+    pub planes_killed: i64,
+    #[serde(default)]
+    pub ships_spotted: i64,
+    #[serde(default)]
+    pub max_damage_dealt: i64,
+    #[serde(default)]
+    pub max_frags_battle: i64,
+    #[serde(default)]
+    pub max_xp: i64,
+    #[serde(default)]
+    pub art_agro: i64,
+    #[serde(default)]
+    pub torpedo_agro: i64,
+    #[serde(default)]
+    pub capture_points: i64,
+    #[serde(default)]
+    pub dropped_capture_points: i64,
+    #[serde(default)]
+    pub team_capture_points: i64,
+    #[serde(default)]
+    pub team_dropped_capture_points: i64,
+    #[serde(default)]
+    pub max_planes_killed: i64,
+    #[serde(default)]
+    pub max_ships_spotted: i64,
+    #[serde(default)]
+    pub max_total_agro: i64,
+    #[serde(default)]
+    pub max_damage_scouting: i64,
+}
+
+/// One unlocked achievement for a player (`achievement_id` -> count).
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
+pub struct Achievement {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub count: u64,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub icon: String,
+}
+
+/// Wiki entry for an achievement (name/icon), used to enrich the player's
+/// unlocked list. Cached in key-value storage.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct EncyclopediaAchievement {
+    #[serde(default, rename = "achievement_id")]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default, rename = "image")]
+    pub icon: String,
 }
 
 /// One expected-value entry from `personal_rating.json` (`data.<ship_id>`).
@@ -204,6 +283,18 @@ pub struct PlayerView {
     pub hidden_profile: bool,
     #[serde(default)]
     pub ships: Vec<ShipStatLine>,
+    #[serde(default)]
+    pub statistics: PlayerStatistics,
+    #[serde(default)]
+    pub achievements: Vec<Achievement>,
+    #[serde(default)]
+    pub created_at: Option<i64>,
+    #[serde(default)]
+    pub last_battle_time: Option<i64>,
+    #[serde(default)]
+    pub leveling_tier: Option<i64>,
+    #[serde(default)]
+    pub clan_tag: String,
 }
 
 /// One row of the player's ship list with computed rating data.

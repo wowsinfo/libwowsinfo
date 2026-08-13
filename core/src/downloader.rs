@@ -7,8 +7,8 @@ use serde_json::{Map, Value};
 
 use crate::{
     models::{
-        AccountListEntry, ApiResponse, EncyclopediaShip, PlayerInfo, PlayerView, PrEntry,
-        RawEncyclopediaShip, ShipStatLine, ShipStats,
+        AccountListEntry, Achievement, ApiResponse, EncyclopediaAchievement, EncyclopediaShip,
+        PlayerInfo, PlayerView, PrEntry, RawEncyclopediaShip, ShipStatLine, ShipStats,
     },
     rating::{get_ap, get_colour, get_comment, get_overall_rating},
 };
@@ -116,6 +116,68 @@ pub fn parse_player_info(json: &Value, account_id: u64) -> Option<PlayerInfo> {
     serde_json::from_value::<PlayerInfo>(entry.clone()).ok()
 }
 
+/// Parse the achievements encyclopedia (`data.battle`) into a wiki lookup.
+#[must_use]
+pub fn parse_achievements_wiki(json: &Value) -> HashMap<String, EncyclopediaAchievement> {
+    let empty = Value::Object(Map::new());
+    let battle = guard(json, "data.battle", &empty);
+    let Some(battle) = battle.as_object() else {
+        return HashMap::new();
+    };
+    battle
+        .values()
+        .filter_map(|entry| serde_json::from_value::<EncyclopediaAchievement>(entry.clone()).ok())
+        .map(|entry| (entry.id.clone(), entry))
+        .collect()
+}
+
+/// Parse `/wows/account/achievements/` into the player's unlocked
+/// achievements (id -> count), enriched with wiki names/icons and sorted by
+/// count descending.
+#[must_use]
+pub fn parse_achievements(
+    json: &Value,
+    account_id: u64,
+    wiki: &HashMap<String, EncyclopediaAchievement>,
+) -> Vec<Achievement> {
+    let empty = Value::Object(Map::new());
+    let data = guard(json, "data", &empty);
+    let entry = data.get(account_id.to_string()).unwrap_or(&empty);
+    let mut achievements: Vec<Achievement> = entry
+        .get("battle")
+        .and_then(Value::as_object)
+        .map(|battle| {
+            battle
+                .iter()
+                .filter_map(|(id, count)| {
+                    count.as_u64().map(|count| Achievement {
+                        id: id.clone(),
+                        count,
+                        name: wiki.get(id).map(|e| e.name.clone()).unwrap_or_default(),
+                        icon: wiki.get(id).map(|e| e.icon.clone()).unwrap_or_default(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    achievements.sort_by(|a, b| b.count.cmp(&a.count));
+    achievements
+}
+
+/// Parse the player's clan tag from `/wows/clans/accountinfo/` (empty when
+/// the player is not in a clan).
+#[must_use]
+pub fn parse_clan_tag(json: &Value, account_id: u64) -> String {
+    let empty = Value::Object(Map::new());
+    let data = guard(json, "data", &empty);
+    data.get(account_id.to_string())
+        .and_then(|entry| entry.get("clan"))
+        .and_then(|clan| clan.get("tag"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string()
+}
+
 /// Parse `/wows/ships/stats/` into the ship list for one account.
 ///
 /// The API returns `data.<account_id>` either as an object keyed by ship id
@@ -170,6 +232,8 @@ pub fn assemble_player(
     pr: &HashMap<u64, PrEntry>,
     warship: &HashMap<u64, EncyclopediaShip>,
     server: crate::data::Server,
+    clan_tag: String,
+    achievements: Vec<Achievement>,
 ) -> PlayerView {
     let rating = get_overall_rating(&mut ships, pr);
     let total_battles: i64 = ships
@@ -221,6 +285,12 @@ pub fn assemble_player(
         ap: get_ap(rating, total_battles),
         hidden_profile: player.hidden_profile.unwrap_or(false),
         ships: ship_lines,
+        statistics: player.statistics.unwrap_or_default(),
+        achievements,
+        created_at: player.created_at,
+        last_battle_time: player.last_battle_time,
+        leveling_tier: player.leveling_tier,
+        clan_tag,
     }
 }
 

@@ -124,6 +124,60 @@ pub(super) fn on_pr_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<E
     try_assemble(model)
 }
 
+pub(super) fn on_achievements_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+    match outcome {
+        HttpOutcome::Ok { body } => {
+            let json = serde_json::from_str(&body).unwrap_or_default();
+            if let Some(account_id) = model.pending_account_id {
+                model.achievements =
+                    downloader::parse_achievements(&json, account_id, &model.achievements_wiki);
+            }
+        }
+        HttpOutcome::Err { message } => {
+            model.phase = Phase::Error(format!("Achievements failed: {message}"));
+        }
+    }
+    try_assemble(model)
+}
+
+pub(super) fn on_achievements_wiki_loaded(
+    model: &mut Model,
+    outcome: HttpOutcome,
+) -> Command<Effect, Event> {
+    model.downloading_achievements = false;
+    match outcome {
+        HttpOutcome::Ok { body } => {
+            let json = serde_json::from_str(&body).unwrap_or_default();
+            model.achievements_wiki = downloader::parse_achievements_wiki(&json);
+            if !model.achievements_wiki.is_empty() {
+                if let Ok(json) = serde_json::to_string(&model.achievements_wiki) {
+                    return Command::all([
+                        kv_set_event(data::saved::ACHIEVEMENT, json),
+                        try_assemble(model),
+                    ]);
+                }
+            }
+        }
+        HttpOutcome::Err { message } => {
+            model.phase = Phase::Error(format!("Achievements wiki failed: {message}"));
+        }
+    }
+    try_assemble(model)
+}
+
+pub(super) fn on_clan_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+    match outcome {
+        HttpOutcome::Ok { body } => {
+            let json = serde_json::from_str(&body).unwrap_or_default();
+            if let Some(account_id) = model.pending_account_id {
+                model.clan_tag = downloader::parse_clan_tag(&json, account_id);
+            }
+        }
+        HttpOutcome::Err { .. } => {}
+    }
+    try_assemble(model)
+}
+
 pub(super) fn on_game_version_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
@@ -169,6 +223,13 @@ pub(super) fn on_kv_loaded(model: &mut Model, key: String, value: KvOutcome) -> 
                     model.pr = downloader::parse_pr(&value);
                 }
             }
+            data::saved::ACHIEVEMENT => {
+                if let Ok(wiki) =
+                    serde_json::from_str::<HashMap<String, models::EncyclopediaAchievement>>(&json)
+                {
+                    model.achievements_wiki = wiki;
+                }
+            }
             _ => {}
         },
         KvOutcome::Ok { value: None } | KvOutcome::Err { .. } => {
@@ -176,9 +237,31 @@ pub(super) fn on_kv_loaded(model: &mut Model, key: String, value: KvOutcome) -> 
                 // Bundled table is the fallback when nothing is cached yet.
                 model.pr = downloader::local_pr();
             }
+            if key == data::saved::ACHIEVEMENT && model.achievements_wiki.is_empty() {
+                return fetch_achievements_wiki(model);
+            }
         }
     }
     render::render()
+}
+
+/// Fetch (and cache) the achievements encyclopedia when nothing is cached yet.
+fn fetch_achievements_wiki(model: &mut Model) -> Command<Effect, Event> {
+    if model.downloading_achievements {
+        return render::render();
+    }
+    let Some(config) = model.config.clone() else {
+        return render::render();
+    };
+    let key = api_key(&config);
+    if key.is_empty() {
+        return render::render();
+    }
+    model.downloading_achievements = true;
+    HttpCap::get(api::achievements_wiki(model.server, &key, &model.api_language))
+        .expect_string()
+        .build()
+        .then_send(|result| Event::AchievementsWikiLoaded(http_outcome(result)))
 }
 
 fn try_assemble(model: &mut Model) -> Command<Effect, Event> {
@@ -189,8 +272,15 @@ fn try_assemble(model: &mut Model) -> Command<Effect, Event> {
     }
     if let (Some(player), Some(ships)) = (model.pending_player.clone(), model.pending_ships.clone())
     {
-        let view =
-            downloader::assemble_player(player, ships, &model.pr, &model.warship, model.server);
+        let view = downloader::assemble_player(
+            player,
+            ships,
+            &model.pr,
+            &model.warship,
+            model.server,
+            model.clan_tag.clone(),
+            model.achievements.clone(),
+        );
         model.selected = Some(view);
         model.phase = Phase::Player;
     }

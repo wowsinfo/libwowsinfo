@@ -25,8 +25,9 @@ type KeyValueCap = crux_kv::KeyValue<Effect, Event>;
 type TimeCap = crux_time::Time<Effect, Event>;
 
 use effects::{
-    on_game_version_loaded, on_kv_loaded, on_player_loaded, on_pr_loaded, on_search_loaded,
-    on_ships_loaded, on_warship_loaded,
+    on_achievements_loaded, on_achievements_wiki_loaded, on_clan_loaded, on_game_version_loaded,
+    on_kv_loaded, on_player_loaded, on_pr_loaded, on_search_loaded, on_ships_loaded,
+    on_warship_loaded,
 };
 use handlers::{init, refresh, search, select, set_server};
 
@@ -85,6 +86,9 @@ pub enum Event {
     ShipsLoaded(HttpOutcome),
     WarshipLoaded(HttpOutcome),
     PrLoaded(HttpOutcome),
+    AchievementsLoaded(HttpOutcome),
+    AchievementsWikiLoaded(HttpOutcome),
+    ClanLoaded(HttpOutcome),
     KvLoaded {
         key: String,
         value: KvOutcome,
@@ -149,6 +153,10 @@ pub struct Model {
     pending_player: Option<models::PlayerInfo>,
     pending_ships: Option<Vec<models::ShipStats>>,
     selected: Option<models::PlayerView>,
+    achievements: Vec<models::Achievement>,
+    achievements_wiki: HashMap<String, models::EncyclopediaAchievement>,
+    clan_tag: String,
+    downloading_achievements: bool,
     /// True while the paginated ship encyclopedia download is in progress.
     downloading_warship: bool,
 }
@@ -178,6 +186,9 @@ impl AppTrait for App {
             Event::ShipsLoaded(outcome) => on_ships_loaded(model, outcome),
             Event::WarshipLoaded(outcome) => on_warship_loaded(model, outcome),
             Event::PrLoaded(outcome) => on_pr_loaded(model, outcome),
+            Event::AchievementsLoaded(outcome) => on_achievements_loaded(model, outcome),
+            Event::AchievementsWikiLoaded(outcome) => on_achievements_wiki_loaded(model, outcome),
+            Event::ClanLoaded(outcome) => on_clan_loaded(model, outcome),
             Event::KvLoaded { key, value } => on_kv_loaded(model, key, value),
         }
     }

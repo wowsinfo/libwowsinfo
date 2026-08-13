@@ -112,6 +112,7 @@ fn assemble_player_builds_view() {
             wins: 50,
             damage_dealt: 5_000_000,
             frags: 80,
+            ..Default::default()
         }),
         ..Default::default()
     }];
@@ -123,14 +124,88 @@ fn assemble_player_builds_view() {
             ..Default::default()
         },
         ships,
-        &pr,
-        &HashMap::new(),
-        crate::data::Server::Asia,
-    );
+            &pr,
+            &HashMap::new(),
+            crate::data::Server::Asia,
+            String::new(),
+            Vec::new(),
+        );
     assert_eq!(view.nickname, "HenryQuan");
     assert_eq!(view.server, "asia");
     assert_eq!(view.ships.len(), 1);
     assert!(view.ships[0].rating > 0.0);
     assert!(view.rating > 0.0);
     assert!(view.ap > 0.0, "player AP derives from rating and total battles");
+}
+
+#[test]
+fn parse_achievements_sorts_by_count() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {"battle": {"2": 1, "1": 3, "3": 2}}}
+    });
+    let achievements = parse_achievements(&json, 42, &HashMap::new());
+    let ids: Vec<&str> = achievements.iter().map(|a| a.id.as_str()).collect();
+    assert_eq!(ids, vec!["1", "3", "2"]);
+    assert_eq!(achievements[0].count, 3);
+}
+
+#[test]
+fn achievements_wiki_parses_and_enriches() {
+    let wiki_json = serde_json::json!({
+        "status": "ok",
+        "data": {"battle": {
+            "1": {"achievement_id": "1", "name": "First Blood", "image": "http://example.com/1.png"},
+            "2": {"achievement_id": "2", "name": "Dreadnought", "image": "http://example.com/2.png"}
+        }}
+    });
+    let wiki = parse_achievements_wiki(&wiki_json);
+    assert_eq!(wiki.len(), 2);
+    assert_eq!(wiki.get("1").map(|e| e.name.as_str()), Some("First Blood"));
+
+    let battle_json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {"battle": {"2": 1, "1": 3}}}
+    });
+    let achievements = parse_achievements(&battle_json, 42, &wiki);
+    assert_eq!(achievements[0].name, "First Blood");
+    assert_eq!(achievements[0].icon, "http://example.com/1.png");
+    assert_eq!(achievements[1].name, "Dreadnought");
+}
+
+#[test]
+fn clan_tag_extracts_tag() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {"clan": {"tag": "ABC"}}}
+    });
+    assert_eq!(parse_clan_tag(&json, 42), "ABC");
+    assert_eq!(parse_clan_tag(&json, 99), "");
+}
+
+#[test]
+fn statistics_parses_all_modes() {
+    let json = serde_json::json!({
+        "status": "ok",
+        "data": {"42": {
+            "account_id": 42,
+            "nickname": "Bob",
+            "statistics": {
+                "pvp": {"battles": 10},
+                "pvp_solo": {"battles": 5},
+                "pvp_div2": {"battles": 3},
+                "pvp_div3": {"battles": 2},
+                "pve": {"battles": 7},
+                "rank_solo": {"battles": 4}
+            }
+        }}
+    });
+    let player = parse_player_info(&json, 42).expect("player");
+    let stats = player.statistics.expect("statistics");
+    assert_eq!(stats.pvp.as_ref().map(|p| p.battles), Some(10));
+    assert_eq!(stats.solo.as_ref().map(|p| p.battles), Some(5));
+    assert_eq!(stats.div2.as_ref().map(|p| p.battles), Some(3));
+    assert_eq!(stats.div3.as_ref().map(|p| p.battles), Some(2));
+    assert_eq!(stats.pve.as_ref().map(|p| p.battles), Some(7));
+    assert_eq!(stats.rank_solo.as_ref().map(|p| p.battles), Some(4));
 }

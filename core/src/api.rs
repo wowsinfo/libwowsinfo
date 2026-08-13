@@ -92,6 +92,15 @@ pub fn player_achievement(server: Server, api_key: &str, account_id: u64) -> Str
     )
 }
 
+/// Achievements encyclopedia (`name`/`image` per achievement).
+#[must_use]
+pub fn achievements_wiki(server: Server, api_key: &str, language: &str) -> String {
+    format!(
+        "https://api.worldofwarships.{}/wows/encyclopedia/achievements/?application_id={api_key}&fields=battle.achievement_id%2Cbattle.name%2Cbattle.image&language={language}",
+        server.domain()
+    )
+}
+
 /// Player clan: `/wows/clans/accountinfo/`.
 #[must_use]
 pub fn player_clan(server: Server, api_key: &str, account_id: u64) -> String {
