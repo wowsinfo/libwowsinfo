@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 fun SearchScreen(
     core: Core,
     viewModel: ViewModel,
-    onPlayerSelected: () -> Unit,
+    onPlayerSelected: (ULong) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -99,7 +99,7 @@ fun SearchScreen(
 private fun ResultList(
     results: List<SearchResult>,
     core: Core,
-    onPlayerSelected: () -> Unit,
+    onPlayerSelected: (ULong) -> Unit,
 ) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         item { SectionTitle("Player - ${results.size}") }
@@ -108,8 +108,7 @@ private fun ResultList(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        onPlayerSelected()
-                        core.update(Event.SelectPlayer(result.accountId))
+                        onPlayerSelected(result.accountId)
                     }
                     .padding(vertical = 12.dp, horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,

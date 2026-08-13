@@ -20,6 +20,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.WoWsInfo" />
+        <activity
+            android:name=".ShipDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".PlayerActivity"
+            android:theme="@style/Theme.WoWsInfo" />
     </application>
 
 </manifest>
