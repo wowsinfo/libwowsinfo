@@ -20,6 +20,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val core = (application as WoWsInfoApp).core
+        val savedLanguage =
+            getSharedPreferences("wowsinfo", MODE_PRIVATE).getString("language", "en") ?: "en"
         setContent {
             WoWsInfoTheme {
                 Surface(
@@ -50,6 +52,14 @@ class MainActivity : ComponentActivity() {
                         onWiki = {
                             startActivity(Intent(this, WikiActivity::class.java))
                         },
+                        onLanguage = { language ->
+                            getSharedPreferences("wowsinfo", MODE_PRIVATE)
+                                .edit()
+                                .putString("language", language)
+                                .apply()
+                            core.update(Event.SetLanguage(language))
+                        },
+                        initialLanguage = savedLanguage,
                         modifier = Modifier.safeDrawingPadding(),
                     )
                 }

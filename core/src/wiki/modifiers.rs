@@ -65,6 +65,16 @@ impl ModifierSet {
             .product::<f64>()
     }
 
+    /// Sum of every entry with `key` (used for additive counts).
+    #[must_use]
+    pub fn sum(&self, ship_class: &str, key: &str) -> f64 {
+        self.entries
+            .iter()
+            .filter(|(k, _)| k == key)
+            .map(|(_, value)| value.for_class(ship_class))
+            .sum::<f64>()
+    }
+
     /// True when the set contains at least one entry for `key`.
     #[must_use]
     pub fn has(&self, key: &str) -> bool {
@@ -138,6 +148,11 @@ pub struct AdjustedStats {
     /// Multipliers for consumable reload / work time (applied per consumable).
     pub consumable_reload_mult: f64,
     pub consumable_work_mult: f64,
+    /// Extra consumable charges (additive) and capacity multiplier.
+    pub consumable_charges_extra: f64,
+    pub consumable_capacity_mult: f64,
+    pub pinger_reload_s: f64,
+    pub pinger_speed: f64,
 }
 
 impl Default for AdjustedStats {
@@ -160,6 +175,10 @@ impl Default for AdjustedStats {
             battery_regen: 0.0,
             consumable_reload_mult: 1.0,
             consumable_work_mult: 1.0,
+            consumable_charges_extra: 0.0,
+            consumable_capacity_mult: 1.0,
+            pinger_reload_s: 0.0,
+            pinger_speed: 0.0,
         }
     }
 }
@@ -248,6 +267,12 @@ pub fn apply_modifiers(
     let battery_capacity = battery.map_or(0.0, |b| b.capacity as f64)
         * mods.multiply(ship_class, "batteryCapacityCoeff");
     let battery_regen = battery.map_or(0.0, |b| b.regen) * mods.multiply(ship_class, "batteryRegenCoeff");
+    let pinger = build.pinger.as_ref();
+    let pinger_reload = pinger.map_or(0.0, |p| p.reload)
+        * mods.multiply(ship_class, "pingerReloadCoeff");
+    let pinger_speed = pinger.map_or(0.0, |p| p.speed)
+        * mods.multiply(ship_class, "pingerWaveSpeedCoeff")
+        * mods.multiply(ship_class, "hydrophoneWaveSpeedCoeff");
 
     AdjustedStats {
         health: hull.map_or(0.0, |h| h.health) * mods.multiply(ship_class, "healthHullCoeff"),
@@ -267,6 +292,10 @@ pub fn apply_modifiers(
         battery_regen,
         consumable_reload_mult: mods.multiply(ship_class, "ConsumableReloadTime"),
         consumable_work_mult: mods.multiply(ship_class, "ConsumablesWorkTime"),
+        consumable_charges_extra: mods.sum(ship_class, "additionalConsumables"),
+        consumable_capacity_mult: mods.multiply(ship_class, "consumableCapacityCoeff"),
+        pinger_reload_s: pinger_reload,
+        pinger_speed,
     }
 }
 

@@ -193,6 +193,8 @@ pub(super) fn set_local_data(
     let lang_json = serde_json::from_str(&lang).unwrap_or_default();
     model.local_data = Some(wiki::parse_game_data(&ships_json));
     model.local_lang = wiki::parse_lang(&lang_json, &model.api_language);
+    model.raw_lang_json = Some(lang);
+    refresh_local_lang(model);
     model.local_selection = wiki::ModuleSelection::default();
     model.local_skills.clear();
     model.local_upgrades.clear();
@@ -202,6 +204,64 @@ pub(super) fn set_local_data(
     model.local_ship_id = None;
     model.local_ship = None;
     render::render()
+}
+
+/// Rebuild everything that depends on the language map after it changes.
+fn refresh_local_lang(model: &mut Model) {
+    if let Some(raw) = &model.raw_lang_json {
+        let lang_json = serde_json::from_str(raw).unwrap_or_default();
+        model.local_lang = wiki::parse_lang(&lang_json, &model.api_language);
+    }
+    if let Some(data) = &model.local_data {
+        model.local_consumables = wiki::all_consumable_views(data, &model.local_lang);
+        model.local_skills_wiki = wiki::all_skill_views(data, &model.local_lang);
+    }
+    fill_local_warships(model);
+    rebuild_local_ship(model);
+}
+
+/// Fill the warship encyclopedia from the local game data (offline ship list).
+fn fill_local_warships(model: &mut Model) {
+    if let Some(data) = &model.local_data {
+        model.warship = data
+            .ships
+            .iter()
+            .map(|(id, ship)| {
+                (
+                    *id,
+                    models::EncyclopediaShip {
+                        ship_id: *id,
+                        name: model.local_lang.get(&ship.name),
+                        nation: ship.region.clone(),
+                        r#type: ship.r#type.clone(),
+                        tier: ship.tier,
+                        premium: ship.group == "special",
+                        icon: String::new(),
+                        new: None,
+                        model: None,
+                    },
+                )
+            })
+            .collect();
+    }
+}
+
+/// Change the interface/data language and persist it.
+pub(super) fn set_language(model: &mut Model, language: String) -> Command<Effect, Event> {
+    model.api_language = if language.is_empty() {
+        data::DEFAULT_USER_LANGUAGE.to_string()
+    } else {
+        language
+    };
+    if let Some(config) = model.config.as_mut() {
+        config.language = model.api_language.clone();
+    }
+    refresh_local_lang(model);
+    let value = serde_json::to_string(&model.api_language).unwrap_or_default();
+    Command::all([
+        kv_set_event(data::local::USER_LANGUAGE, value),
+        render::render(),
+    ])
 }
 
 fn local_build_config(model: &Model) -> wiki::LocalBuildConfig {
@@ -231,28 +291,7 @@ pub(super) fn load_local_warships(model: &mut Model) -> Command<Effect, Event> {
     if !model.warship.is_empty() {
         return render::render();
     }
-    if let Some(data) = &model.local_data {
-        model.warship = data
-            .ships
-            .iter()
-            .map(|(id, ship)| {
-                (
-                    *id,
-                    models::EncyclopediaShip {
-                        ship_id: *id,
-                        name: ship.index.clone(),
-                        nation: ship.region.clone(),
-                        r#type: ship.r#type.clone(),
-                        tier: ship.tier,
-                        premium: ship.group == "special",
-                        icon: String::new(),
-                        new: None,
-                        model: None,
-                    },
-                )
-            })
-            .collect();
-    }
+    fill_local_warships(model);
     render::render()
 }
 

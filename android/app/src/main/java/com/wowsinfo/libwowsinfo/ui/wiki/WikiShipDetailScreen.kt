@@ -98,7 +98,7 @@ fun WikiShipDetailScreen(
                 item { AirSupportSection(airSupport, ship.airSupportPlane) }
             }
             ship.pinger?.let { pinger ->
-                item { PingerSection(pinger) }
+                item { PingerSection(pinger, ship.adjusted) }
             }
             ship.depthCharges?.let { depth ->
                 item { DepthChargeSection(depth) }
@@ -113,7 +113,7 @@ fun WikiShipDetailScreen(
                 item { MobilitySection(hull.mobility, ship.adjusted) }
                 item { ConcealmentSection(hull.visibility, ship.adjusted) }
                 hull.submarineBattery?.let { battery ->
-                    item { SubmarineBatterySection(battery) }
+                    item { SubmarineBatterySection(battery, ship.adjusted) }
                 }
             }
             if (ship.skills.isNotEmpty()) {
@@ -153,6 +153,9 @@ private fun ShipTitleCard(ship: LocalShipWiki, onShipClick: (ULong) -> Unit) {
                 AssistChip(onClick = {}, label = { Text(ship.region) })
                 if (ship.premium) AssistChip(onClick = {}, label = { Text("Premium") })
                 if (ship.special) AssistChip(onClick = {}, label = { Text("Special") })
+                if (ship.camoCount > 0) {
+                    AssistChip(onClick = {}, label = { Text("Camos ${ship.camoCount}") })
+                }
             }
             ship.description.takeIf { it.isNotBlank() && !it.startsWith("IDS_") }?.let {
                 Text(

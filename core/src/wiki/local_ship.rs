@@ -19,7 +19,7 @@ use super::components::{
 };
 use super::loadouts::{
     combined_modifiers, consumable_views, flag_views, skill_views, upgrade_views,
-    ConsumableView, FlagView, LocalBuildConfig, SkillView, UpgradeView,
+    next_ship_views, ConsumableView, FlagView, LocalBuildConfig, NextShip, SkillView, UpgradeView,
 };
 use super::modifiers::apply_modifiers;
 use super::ship_builder::{build_ship_build, ModuleOption, ModuleSelection, ShipBuild};
@@ -112,6 +112,8 @@ pub struct ModuleOptionView {
     pub name: String,
     pub cost_xp: i64,
     pub cost_cr: i64,
+    /// What selecting this option changes vs the current build.
+    pub delta: String,
 }
 
 /// One changeable module slot shown in the UI.
@@ -134,15 +136,6 @@ pub struct SimilarShip {
     pub ship_type: String,
 }
 
-/// A ship in the research tree (`next_ships`).
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Facet)]
-pub struct NextShip {
-    pub ship_id: u64,
-    pub index: String,
-    pub name: String,
-    pub tier: i64,
-}
-
 /// The full local ship wiki entry.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Facet)]
 pub struct LocalShipWiki {
@@ -162,6 +155,7 @@ pub struct LocalShipWiki {
     pub cost_gold: i64,
     pub cost_xp: i64,
     pub next_ships: Vec<NextShip>,
+    pub camo_count: i64,
     pub modules: Vec<ModuleSlotView>,
     pub hull: Option<HullStats>,
     pub main_battery: Option<MainBatteryView>,
@@ -277,8 +271,10 @@ fn torpedo_view(
 
 fn module_slot_views(
     lang: &LangMap,
+    ship: &ShipInfo,
     slots: Vec<(String, Vec<ModuleOption>)>,
     selection: ModuleSelection,
+    build: &ShipBuild,
 ) -> Vec<ModuleSlotView> {
     let selected = |slot: &str| match slot {
         "hull" => selection.hull,
@@ -304,6 +300,13 @@ fn module_slot_views(
                     name: lang.get(&option.name),
                     cost_xp: option.cost_xp,
                     cost_cr: option.cost_cr,
+                    delta: super::ship_builder::module_option_delta(
+                        ship,
+                        selection,
+                        &slot,
+                        option.index as usize,
+                        build,
+                    ),
                 })
                 .collect(),
             slot,
@@ -402,14 +405,27 @@ pub fn build_local_ship_wiki(
         })
         .unwrap_or_default();
 
-    let slots = module_slot_views(lang, super::ship_builder::module_slots(ship), selection);
-    let aircraft = aircraft_slot_views(data, lang, ship, selection);
+    let slots = module_slot_views(
+        lang,
+        ship,
+        super::ship_builder::module_slots(ship),
+        selection,
+        &build,
+    );
+    let combined = combined_modifiers(data, ship, config);
+    let adjusted = apply_modifiers(&build, &ship.r#type, &combined, config.hp_fraction);
+    let aircraft = aircraft_slot_views(
+        data,
+        lang,
+        ship,
+        selection,
+        &combined,
+        &ship.r#type,
+    );
     let air_support_plane = build
         .air_support
         .as_ref()
-        .and_then(|support| air_support_plane(data, lang, &support.plane));
-    let combined = combined_modifiers(data, ship, config);
-    let adjusted = apply_modifiers(&build, &ship.r#type, &combined, config.hp_fraction);
+        .and_then(|support| air_support_plane(data, lang, &support.plane, &combined, &ship.r#type));
 
     let similar_ships = similar_ships(data, lang, ship);
 
@@ -429,18 +445,8 @@ pub fn build_local_ship_wiki(
         cost_credit: ship.cost_cr,
         cost_gold: ship.cost_gold,
         cost_xp: ship.cost_xp,
-        next_ships: ship
-            .next_ships
-            .iter()
-            .filter_map(|id| {
-                data.ships.get(id).map(|next| NextShip {
-                    ship_id: *id,
-                    index: next.index.clone(),
-                    name: lang.get(&next.name),
-                    tier: next.tier,
-                })
-            })
-            .collect(),
+        next_ships: next_ship_views(data, lang, ship),
+        camo_count: ship.permoflages.len() as i64,
         modules: slots,
         hull: build.hull.clone(),
         main_battery,

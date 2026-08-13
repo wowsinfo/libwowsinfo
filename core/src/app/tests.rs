@@ -214,6 +214,13 @@ fn local_data_drives_ship_wiki_and_warship_list() {
     let app = AppTester::<App>::default();
     let mut model = Model::default();
     let _ = app.update(Event::Init(config()), &mut model);
+    // KV is shared within the test process; pin the language explicitly.
+    let _ = app.update(
+        Event::SetLanguage {
+            language: "en".to_string(),
+        },
+        &mut model,
+    );
     let ships = serde_json::json!({
         "ships": {
             "1": {
@@ -253,6 +260,10 @@ fn local_data_drives_ship_wiki_and_warship_list() {
         "en": {
             "IDS_NAME": "New Orleans", "IDS_HULL": "Hull A", "IDS_AP": "203 mm AP",
             "IDS_CRUISER": "Cruiser", "IDS_USA": "U.S.A."
+        },
+        "ja": {
+            "IDS_NAME": "ニューオーリンズ", "IDS_HULL": "船体A", "IDS_AP": "203mm AP",
+            "IDS_CRUISER": "巡洋艦", "IDS_USA": "アメリカ"
         }
     })
     .to_string();
@@ -267,11 +278,19 @@ fn local_data_drives_ship_wiki_and_warship_list() {
     assert!(app.view(&model).local_data_ready);
     let _ = app.update(Event::LoadLocalWarships, &mut model);
     assert_eq!(app.view(&model).warship.len(), 1);
-    assert_eq!(app.view(&model).warship[&1].name, "PASC014");
+    assert_eq!(app.view(&model).warship[&1].name, "New Orleans");
+
+    let _ = app.update(
+        Event::SetLanguage {
+            language: "ja".to_string(),
+        },
+        &mut model,
+    );
+    assert_eq!(app.view(&model).warship[&1].name, "ニューオーリンズ");
 
     let _ = app.update(Event::LoadLocalShipWiki { ship_id: 1 }, &mut model);
     let wiki = app.view(&model).local_ship.expect("local ship");
-    assert_eq!(wiki.name, "New Orleans");
+    assert_eq!(wiki.name, "ニューオーリンズ");
     assert_eq!(wiki.main_battery.as_ref().map(|m| m.configuration.as_str()), Some("3 x 3"));
     assert_eq!(wiki.penetration_curves.len(), 1);
 

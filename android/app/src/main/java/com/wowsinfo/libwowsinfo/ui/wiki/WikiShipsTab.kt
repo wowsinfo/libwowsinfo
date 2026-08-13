@@ -4,16 +4,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -30,16 +39,85 @@ fun WikiShipsTab(
         LoadingHint("Loading ships...")
         return
     }
+    var query by rememberSaveable { mutableStateOf("") }
+    var tierFilter by rememberSaveable { mutableStateOf(0L) }
+    var typeFilter by rememberSaveable { mutableStateOf("") }
     val sorted = ships.values.sortedWith(
         compareBy({ it.tier }, { it.type }, { it.name }),
     )
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(8.dp),
-    ) {
-        items(sorted, key = { it.shipId.toString() }) { ship ->
-            RowShip(ship, onClick = { onShipClick(ship.shipId) })
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            placeholder = { Text("Search ships, nation or type…") },
+            singleLine = true,
+        )
+        val types = sorted.map { it.type }.distinct().sorted()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            FilterChip(
+                selected = typeFilter.isEmpty(),
+                onClick = { typeFilter = "" },
+                label = { Text("All types") },
+            )
+            types.forEach { type ->
+                FilterChip(
+                    selected = typeFilter == type,
+                    onClick = { typeFilter = if (typeFilter == type) "" else type },
+                    label = { Text(type) },
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            FilterChip(
+                selected = tierFilter == 0L,
+                onClick = { tierFilter = 0L },
+                label = { Text("All tiers") },
+            )
+            (1L..11L).forEach { tier ->
+                FilterChip(
+                    selected = tierFilter == tier,
+                    onClick = { tierFilter = if (tierFilter == tier) 0L else tier },
+                    label = { Text(tierRoman(tier)) },
+                )
+            }
+        }
+        val filtered = if (query.isBlank()) {
+            sorted
+        } else {
+            sorted.filter { ship ->
+                val q = query.trim()
+                ship.name.contains(q, ignoreCase = true) ||
+                    ship.type.contains(q, ignoreCase = true) ||
+                    ship.nation.contains(q, ignoreCase = true) ||
+                    ship.tier.toString() == q
+            }
+        }.filter { ship ->
+            (tierFilter == 0L || ship.tier == tierFilter) &&
+                (typeFilter.isEmpty() || ship.type == typeFilter)
+        }
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(8.dp),
+        ) {
+            items(filtered, key = { it.shipId.toString() }) { ship ->
+                RowShip(ship, onClick = { onShipClick(ship.shipId) })
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            }
         }
     }
 }

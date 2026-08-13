@@ -7,6 +7,7 @@ use serde_json::Value;
 use super::aircraft::AircraftInfo;
 use super::gamedata::{GameData, ShipInfo};
 use super::local_ship::ShellView;
+use super::modifiers::ModifierSet;
 use super::ship_builder::ModuleSelection;
 use super::LangMap;
 
@@ -25,15 +26,25 @@ pub struct AircraftDetail {
     pub max_aircraft: Option<i64>,
     pub restore_time: Option<f64>,
     pub bomb: Option<ShellView>,
+    /// Squadron stats after the selected skill modifiers are applied.
+    pub adjusted_health: f64,
+    pub adjusted_speed: f64,
 }
 
 impl AircraftDetail {
-    fn from_aircraft(lang: &LangMap, data: &GameData, aircraft: &AircraftInfo) -> Self {
+    fn from_aircraft(
+        lang: &LangMap,
+        data: &GameData,
+        aircraft: &AircraftInfo,
+        mods: &ModifierSet,
+        ship_class: &str,
+    ) -> Self {
         let bomb = aircraft
             .bomb_name
             .as_deref()
             .and_then(|key| data.projectiles.get(key))
             .map(|projectile| ShellView::from_projectile(lang, projectile));
+        let (health_key, speed_key) = aircraft_type_keys(&aircraft.r#type);
         Self {
             key: aircraft.key.clone(),
             name: lang.get(&aircraft.name),
@@ -47,7 +58,24 @@ impl AircraftDetail {
             max_aircraft: aircraft.max_aircraft,
             restore_time: aircraft.restore_time,
             bomb,
+            adjusted_health: aircraft.health
+                * mods.multiply(ship_class, "planeHealthCoeff")
+                * mods.multiply(ship_class, health_key),
+            adjusted_speed: aircraft.speed
+                * mods.multiply(ship_class, "planeSpeed")
+                * mods.multiply(ship_class, speed_key),
         }
+    }
+}
+
+/// Per-squadron-type modifier keys (health, speed).
+fn aircraft_type_keys(r#type: &str) -> (&'static str, &'static str) {
+    match r#type {
+        "Fighter" => ("fighterHealth", "planeSpeed"),
+        "Dive" => ("diveBomberHealth", "diveBomberSpeedMultiplier"),
+        "Bomber" => ("torpedoBomberHealth", "torpedoSpeedMultiplier"),
+        "Skip" => ("skipBomberHealth", "skipBomberSpeedMultiplier"),
+        _ => ("planeHealthCoeff", "planeSpeed"),
     }
 }
 
@@ -94,6 +122,8 @@ pub fn aircraft_slot_views(
     lang: &LangMap,
     ship: &ShipInfo,
     selection: ModuleSelection,
+    mods: &ModifierSet,
+    ship_class: &str,
 ) -> Vec<AircraftSlotView> {
     const SLOTS: [(&str, &str, &str); 4] = [
         ("_Fighter", "fighter", "Fighter"),
@@ -131,7 +161,9 @@ pub fn aircraft_slot_views(
                         .and_then(|ids| ids.first())
                         .and_then(Value::as_str)
                         .and_then(|key| resolve_aircraft(data, ship, key))
-                        .map(|aircraft| AircraftDetail::from_aircraft(lang, data, aircraft));
+                        .map(|aircraft| {
+                            AircraftDetail::from_aircraft(lang, data, aircraft, mods, ship_class)
+                        });
                     Some(AircraftOptionView {
                         index: index as i64,
                         name: lang.get(&name),
@@ -155,8 +187,10 @@ pub fn air_support_plane(
     data: &GameData,
     lang: &LangMap,
     plane_key: &str,
+    mods: &ModifierSet,
+    ship_class: &str,
 ) -> Option<AircraftDetail> {
     data.aircraft
         .get(plane_key)
-        .map(|aircraft| AircraftDetail::from_aircraft(lang, data, aircraft))
+        .map(|aircraft| AircraftDetail::from_aircraft(lang, data, aircraft, mods, ship_class))
 }

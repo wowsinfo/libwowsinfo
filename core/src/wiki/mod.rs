@@ -22,6 +22,7 @@ mod modifiers;
 mod penetration;
 mod projectile;
 mod ship_builder;
+mod wiki_lists;
 pub use constants::{
     parse_constants, BattleType, DeathReason, GameConstants, GameVersion,
 };
@@ -42,11 +43,12 @@ pub use components::{
 pub use lang::{parse_lang, LangMap};
 pub use local_ship::{
     build_local_ship_wiki, LocalShipWiki, MainBatteryView, ModuleOptionView, ModuleSlotView,
-    NextShip, PenCurveView, ShellView, SimilarShip, TorpedoView,
+    PenCurveView, ShellView, SimilarShip, TorpedoView,
 };
 pub use loadouts::{
-    combined_modifiers, consumable_views, flag_views, modifier_summary, skill_views,
-    upgrade_views, ConsumableView, FlagView, LocalBuildConfig, SkillView, UpgradeView,
+    combined_modifiers, consumable_views, flag_views, modifier_summary, next_ship_views,
+    skill_views, upgrade_views, ConsumableView, FlagView, LocalBuildConfig, NextShip, SkillView,
+    UpgradeView,
 };
 pub use modifiers::{
     apply_modifiers, parse_modifiers, AdjustedStats, ModifierSet, ModifierValue,
@@ -55,6 +57,7 @@ pub use penetration::{
     overmatch_mm, penetration_curve, solve_for_range, BallisticShell, PenetrationPoint,
 };
 pub use projectile::{parse_projectiles, ApInfo, ProjectileInfo};
+pub use wiki_lists::{all_consumable_views, all_skill_views, LocalSkillWikiEntry};
 pub use ship_builder::{
     build_ship_build, module_slots, ModuleOption, ModuleSelection, ShipBuild,
 };

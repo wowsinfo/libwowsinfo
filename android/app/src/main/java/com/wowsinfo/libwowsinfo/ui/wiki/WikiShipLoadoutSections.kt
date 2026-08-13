@@ -75,8 +75,12 @@ fun ConsumablesSection(consumables: List<ConsumableView>, adjusted: AdjustedStat
                             }
                         }
                         if (consumable.charges != -1L) {
+                            val charges = (consumable.charges + adjusted.consumableChargesExtra)
+                                .times(adjusted.consumableCapacityMult)
+                                .toLong()
                             if (consumable.reloadS > 0) append(" · ")
-                            append("${consumable.charges}x")
+                            append("${charges}x")
+                            if (charges != consumable.charges) append(" (${consumable.charges})")
                         }
                     },
                     modifier = Modifier.weight(1f),

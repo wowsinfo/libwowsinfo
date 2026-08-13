@@ -42,6 +42,7 @@ import com.wowsinfo.libwowsinfo.ui.chartColor
 import com.wowsinfo.libwowsinfo.ui.formatNumber
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.floor
 
 private fun fmt(value: Double, digits: Int = 1): String =
     String.format(Locale.US, "%,.${digits}f", value)
@@ -90,7 +91,12 @@ private fun healthText(base: Double, adjusted: Double): String {
 }
 
 private fun statWithBase(base: Double, adjusted: Double, suffix: String): String {
-    val text = "${fmt(adjusted.coerceAtLeast(0.0))} $suffix"
+    val value = adjusted.coerceAtLeast(0.0)
+    val text = if (suffix.isEmpty() && value == floor(value)) {
+        fmtInt(value)
+    } else {
+        "${fmt(value)}${if (suffix.isEmpty()) "" else " $suffix"}"
+    }
     return if (abs(base - adjusted) > 0.01) "$text ($base)" else text
 }
 
@@ -234,6 +240,13 @@ fun ConcealmentSection(visibility: VisibilityStats, adjusted: AdjustedStats) {
                 Triple("Submarine", "${fmt(visibility.submarine)} km", 3),
             ),
         )
+        StatGrid(
+            listOf(
+                Triple("In smoke", "${fmt(visibility.seaInSmoke)} km", 4),
+                Triple("Fire (sea)", "${fmt(visibility.seaFireCoeff)} km", 5),
+                Triple("Fire (air)", "${fmt(visibility.planeFireCoeff)} km", 6),
+            ),
+        )
     }
 }
 
@@ -302,9 +315,9 @@ fun AircraftSection(slot: AircraftSlotView) {
         }
         StatGrid(
             listOf(
-                Triple("HP", fmtInt(aircraft.health), 0),
+                Triple("HP", statWithBase(aircraft.health, aircraft.adjustedHealth, ""), 0),
                 Triple("Planes", aircraft.totalPlanes.toString(), 1),
-                Triple("Speed", "${fmt(aircraft.speed)} kn", 2),
+                Triple("Speed", statWithBase(aircraft.speed, aircraft.adjustedSpeed, "kn"), 2),
                 Triple("Visibility", "${fmt(aircraft.visibility)} km", 3),
             ),
         )
@@ -335,13 +348,13 @@ fun AircraftSection(slot: AircraftSlotView) {
 }
 
 @Composable
-fun PingerSection(pinger: PingerStats) {
+fun PingerSection(pinger: PingerStats, adjusted: AdjustedStats) {
     SectionCard("Sonar") {
         StatGrid(
             listOf(
                 Triple("Range", "${fmt(pinger.range / 1000)} km", 1),
-                Triple("Reload", "${fmt(pinger.reload)} s", 2),
-                Triple("Speed", "${fmt(pinger.speed)} m/s", 3),
+                Triple("Reload", statWithBase(pinger.reload, adjusted.pingerReloadS, "s"), 2),
+                Triple("Speed", statWithBase(pinger.speed, adjusted.pingerSpeed, "m/s"), 3),
                 Triple("Duration", "${fmt(pinger.lifeTime1)} | ${fmt(pinger.lifeTime2)} s", 4),
             ),
         )
@@ -362,12 +375,12 @@ fun DepthChargeSection(depth: DepthChargeStats) {
 }
 
 @Composable
-fun SubmarineBatterySection(battery: SubmarineBatteryStats) {
+fun SubmarineBatterySection(battery: SubmarineBatteryStats, adjusted: AdjustedStats) {
     SectionCard("Battery") {
         StatGrid(
             listOf(
-                Triple("Capacity", battery.capacity.toString(), 1),
-                Triple("Regen", "${fmt(battery.regen)}/s", 2),
+                Triple("Capacity", statWithBase(battery.capacity.toDouble(), adjusted.batteryCapacity, ""), 1),
+                Triple("Regen", statWithBase(battery.regen, adjusted.batteryRegen, "/s"), 2),
             ),
         )
     }
@@ -428,6 +441,8 @@ private fun ShellCard(shell: ShellView, curves: List<PenCurveView>) {
                     append(" · Overmatch ${fmtInt(shell.calibreMm / it)} mm")
                 }
                 shell.ricochetAngle?.let { append(" · Ricochet ${fmt(it)}°") }
+                shell.ricochetAlways?.let { append(" · Always bounces ${fmt(it)}°") }
+                shell.fuseTime?.let { append(" · Fuse ${String.format(Locale.US, "%.3f", it)} s") }
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -451,7 +466,7 @@ private fun TorpedoShellCard(shell: ShellView) {
             text = buildString {
                 append("DMG ${formatNumber(actualDamage)}")
                 if (rangeKm > 0) append(" · ${fmt(rangeKm)} km")
-                append(" · ${fmt(shell.speed)} kn")
+                append(" · ${fmt(shell.speed)}-${fmt((shell.speed + 5) * 1.05)} kn")
                 shell.visibility?.let { append(" · Detect ${fmt(it)} km") }
                 shell.floodChance?.let { append(" · Flood ${fmt(it)}%") }
                 if (reaction > 0) append(" · Reaction ${fmt(reaction)} s")

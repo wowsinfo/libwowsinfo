@@ -35,6 +35,7 @@ pub struct ShipInfo {
     pub cost_cr: i64,
     pub consumables: Vec<Vec<ConsumableInfo>>,
     pub next_ships: Vec<u64>,
+    pub permoflages: Vec<String>,
     /// Raw module/component trees; the sub-shapes are game-data specific and
     /// kept opaque for forward compatibility.
     pub modules: Value,
@@ -234,6 +235,7 @@ pub fn parse_game_data(json: &Value) -> GameData {
                             cost_gold: i64_field(value, "costGold"),
                             cost_cr: i64_field(value, "costCR"),
                             consumables,
+                            permoflages: str_list(value, "permoflages"),
                             next_ships: value
                                 .get("nextShips")
                                 .and_then(Value::as_array)

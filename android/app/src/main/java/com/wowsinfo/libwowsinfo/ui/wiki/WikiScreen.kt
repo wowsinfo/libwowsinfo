@@ -60,8 +60,8 @@ fun WikiScreen(
         }
         when (WikiTab.entries[tabIndex]) {
             WikiTab.Ships -> WikiShipsTab(viewModel.warship, onShipClick)
-            WikiTab.Consumables -> WikiConsumablesTab(viewModel.wikiConsumables)
-            WikiTab.Skills -> WikiSkillsTab(viewModel.wikiCommanderSkills)
+            WikiTab.Consumables -> WikiConsumablesTab(viewModel.localConsumables)
+            WikiTab.Skills -> WikiSkillsTab(viewModel.localSkillsWiki)
             WikiTab.Collections -> WikiCollectionsTab(viewModel.wikiCollections)
         }
     }

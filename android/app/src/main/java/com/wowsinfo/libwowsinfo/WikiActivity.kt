@@ -33,12 +33,10 @@ class WikiActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         withContext(Dispatchers.IO) {
                             val ships = assets.open("wowsinfo.json").bufferedReader().use { it.readText() }
-                            val lang = assets.open("lang_en.json").bufferedReader().use { it.readText() }
+                            val lang = assets.open("lang.json").bufferedReader().use { it.readText() }
                             core.update(Event.SetLocalData(ships, lang))
                             core.update(Event.LoadLocalWarships)
                         }
-                        core.update(Event.LoadWiki(WikiDataset.CONSUMABLES))
-                        core.update(Event.LoadWiki(WikiDataset.COMMANDERSKILLS))
                         core.update(Event.LoadWiki(WikiDataset.COLLECTIONS))
                     }
                     WikiScreen(

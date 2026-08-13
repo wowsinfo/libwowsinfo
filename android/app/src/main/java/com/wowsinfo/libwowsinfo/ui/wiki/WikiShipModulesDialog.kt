@@ -59,18 +59,27 @@ fun WikiShipModulesDialog(
                                         selected = option.index == slot.selected,
                                         onClick = { onSelect(slot.slot, option.index) },
                                         label = {
-                                            Text(
-                                                text = buildString {
-                                                    append(option.name)
-                                                    if (option.costXp > 0) {
-                                                        append(" · ${formatNumber(option.costXp)} XP")
-                                                    }
-                                                    if (option.costCr > 0) {
-                                                        append(" · ${formatNumber(option.costCr)} cr")
-                                                    }
-                                                },
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
+                                            Column {
+                                                Text(
+                                                    text = buildString {
+                                                        append(option.name)
+                                                        if (option.costXp > 0) {
+                                                            append(" · ${formatNumber(option.costXp)} XP")
+                                                        }
+                                                        if (option.costCr > 0) {
+                                                            append(" · ${formatNumber(option.costCr)} cr")
+                                                        }
+                                                    },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                )
+                                                option.delta.takeIf { it.isNotEmpty() }?.let {
+                                                    Text(
+                                                        text = it,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = chartColor(2),
+                                                    )
+                                                }
+                                            }
                                         },
                                     )
                                 }

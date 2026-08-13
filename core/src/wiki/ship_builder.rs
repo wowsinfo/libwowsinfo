@@ -134,6 +134,8 @@ fn component<'a>(ship: &'a ShipInfo, id: &str) -> Option<&'a Value> {
 pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuild {
     let hull_options = parse_module_options(ship, "_Hull");
     let artillery_options = parse_module_options(ship, "_Artillery");
+    let primary_options = parse_module_options(ship, "_PrimaryWeapons");
+    let secondary_options = parse_module_options(ship, "_SecondaryWeapons");
     let torpedo_options = parse_module_options(ship, "_Torpedoes");
     let fire_control_options = parse_module_options(ship, "_Suo");
     let fire_control_options_cv = parse_module_options(ship, "_FlightControl");
@@ -151,6 +153,8 @@ pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuil
 
     let artillery_ids = if let Some(art) = artillery_options.get(selection.artillery) {
         art.components.get("artillery").cloned()
+    } else if let Some(primary) = primary_options.first() {
+        primary.components.get("artillery").cloned()
     } else {
         hull_option
             .as_ref()
@@ -164,6 +168,8 @@ pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuil
 
     let torpedo_ids = if let Some(t) = torpedo_options.get(selection.torpedoes) {
         t.components.get("torpedoes").cloned()
+    } else if let Some(secondary) = secondary_options.first() {
+        secondary.components.get("torpedoes").cloned()
     } else {
         hull_option
             .as_ref()
@@ -283,9 +289,14 @@ pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuil
             required_hits: as_i64(r, "requiredHits"),
         });
 
-    let secondaries = hull_option
-        .as_ref()
+    let secondaries = secondary_options
+        .first()
         .and_then(|o| first_component(&o.components, "atba"))
+        .or_else(|| {
+            hull_option
+                .as_ref()
+                .and_then(|o| first_component(&o.components, "atba"))
+        })
         .and_then(|id| component(ship, id))
         .map(parse_guns);
 
@@ -326,6 +337,83 @@ pub fn module_slots(ship: &ShipInfo) -> Vec<(String, Vec<ModuleOption>)> {
             (options.len() > 1).then_some((label.to_string(), options))
         })
         .collect()
+}
+
+/// Describe what selecting one module option changes vs the current build
+/// (e.g. "HP +5,300 · Reload -3.0 s"). Empty when nothing meaningful changes.
+#[must_use]
+pub fn module_option_delta(
+    ship: &ShipInfo,
+    selection: ModuleSelection,
+    slot: &str,
+    option_index: usize,
+    current: &ShipBuild,
+) -> String {
+    let mut next = selection;
+    match slot {
+        "hull" => next.hull = option_index,
+        "artillery" => next.artillery = option_index,
+        "torpedoes" => next.torpedoes = option_index,
+        "fire_control" | "flight_control" => next.fire_control = option_index,
+        "engine" => next.engine = option_index,
+        "fighter" => next.fighter = option_index,
+        "torpedo_bomber" => next.torpedo_bomber = option_index,
+        "dive_bomber" => next.dive_bomber = option_index,
+        "skip_bomber" => next.skip_bomber = option_index,
+        _ => return String::new(),
+    }
+    if next == selection {
+        return String::new();
+    }
+    let build = build_ship_build(ship, next);
+    let mut parts = Vec::new();
+
+    let health = |b: &ShipBuild| b.hull.as_ref().map_or(0.0, |h| h.health);
+    let delta = health(&build) - health(current);
+    if delta.abs() > 0.5 {
+        parts.push(format!("HP {:+.0}", delta));
+    }
+    let reload = |b: &ShipBuild| {
+        b.main_battery
+            .as_ref()
+            .and_then(|g| g.guns.first())
+            .map_or(0.0, |w| w.reload)
+    };
+    let delta = reload(&build) - reload(current);
+    if delta.abs() > 0.01 {
+        parts.push(format!("Reload {:+.1}s", delta));
+    }
+    let range = |b: &ShipBuild| {
+        b.main_battery
+            .as_ref()
+            .map_or(0.0, |g| g.range_m / 1000.0)
+    };
+    let delta = range(&build) - range(current);
+    if delta.abs() > 0.05 {
+        parts.push(format!("Range {:+.1}km", delta));
+    }
+    let torp_reload = |b: &ShipBuild| {
+        b.torpedoes
+            .as_ref()
+            .and_then(|t| t.launchers.first())
+            .map_or(0.0, |l| l.reload)
+    };
+    let delta = torp_reload(&build) - torp_reload(current);
+    if delta.abs() > 0.01 {
+        parts.push(format!("Torpedo reload {:+.1}s", delta));
+    }
+    let speed = |b: &ShipBuild| b.hull.as_ref().map_or(0.0, |h| h.mobility.speed);
+    let delta = speed(&build) - speed(current);
+    if delta.abs() > 0.01 {
+        parts.push(format!("Speed {:+.1}kn", delta));
+    }
+    let concealment = |b: &ShipBuild| b.hull.as_ref().map_or(0.0, |h| h.visibility.sea);
+    let delta = concealment(&build) - concealment(current);
+    if delta.abs() > 0.01 {
+        parts.push(format!("Concealment {:+.1}km", delta));
+    }
+    parts.truncate(3);
+    parts.join(" · ")
 }
 
 #[cfg(test)]

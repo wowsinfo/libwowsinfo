@@ -1,6 +1,7 @@
 package com.wowsinfo.libwowsinfo.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -51,12 +53,15 @@ fun SearchScreen(
     onClanSelected: (ULong) -> Unit,
     onRealtime: () -> Unit,
     onWiki: () -> Unit,
+    onLanguage: (String) -> Unit,
+    initialLanguage: String = "en",
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
     var server by remember { mutableStateOf(Server.ASIA) }
     var clanMode by rememberSaveable { mutableStateOf(false) }
+    var language by rememberSaveable { mutableStateOf(initialLanguage) }
 
     Column(
         modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -86,6 +91,29 @@ fun SearchScreen(
                 onClick = { clanMode = true },
                 label = { Text("Clan") },
             )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            listOf(
+                "en" to "EN",
+                "ja" to "日本語",
+                "zh_sg" to "简体",
+                "zh_tw" to "繁體",
+            ).forEach { (code, label) ->
+                FilterChip(
+                    selected = language == code,
+                    onClick = {
+                        language = code
+                        onLanguage(code)
+                    },
+                    label = { Text(label) },
+                )
+            }
         }
 
         OutlinedTextField(

@@ -34,8 +34,8 @@ use effects::{
 use handlers::{
     init, load_local_compare, load_local_ship_wiki, load_local_warships, load_ship_wiki,
     load_warship, load_wiki, refresh, search, search_clan, select, select_clan,
-    select_local_ship_module, set_local_data, set_local_hp, set_local_spotted, set_server,
-    toggle_local_flag, toggle_local_skill, toggle_local_upgrade,
+    select_local_ship_module, set_language, set_local_data, set_local_hp, set_local_spotted,
+    set_server, toggle_local_flag, toggle_local_skill, toggle_local_upgrade,
 };
 
 /// Startup configuration supplied by the shell.
@@ -141,6 +141,10 @@ pub enum Event {
     SetLocalSpotted {
         spotted: bool,
     },
+    /// Change the interface/data language (persisted via key-value store).
+    SetLanguage {
+        language: String,
+    },
     /// Persisted the server preference.
     ServerSaved,
     /// Response to `Time::now`.
@@ -218,6 +222,10 @@ pub struct ViewModel {
     pub local_ship: Option<wiki::LocalShipWiki>,
     #[serde(default)]
     pub local_compare: Option<wiki::LocalCompare>,
+    #[serde(default)]
+    pub local_consumables: Vec<wiki::ConsumableView>,
+    #[serde(default)]
+    pub local_skills_wiki: Vec<wiki::LocalSkillWikiEntry>,
     /// True once the bundled game data has been parsed successfully.
     #[serde(default)]
     pub local_data_ready: bool,
@@ -300,6 +308,10 @@ pub struct Model {
     local_flags: HashSet<String>,
     local_hp: f64,
     local_spotted: bool,
+    local_consumables: Vec<wiki::ConsumableView>,
+    local_skills_wiki: Vec<wiki::LocalSkillWikiEntry>,
+    /// Raw `lang.json` string so the language can be re-parsed on change.
+    raw_lang_json: Option<String>,
     downloading_achievements: bool,
     /// True while the paginated ship encyclopedia download is in progress.
     downloading_warship: bool,
@@ -339,6 +351,7 @@ impl AppTrait for App {
             Event::ToggleLocalFlag { key } => toggle_local_flag(model, key),
             Event::SetLocalHp { fraction } => set_local_hp(model, fraction),
             Event::SetLocalSpotted { spotted } => set_local_spotted(model, spotted),
+            Event::SetLanguage { language } => set_language(model, language),
             Event::ServerSaved => render::render(),
             Event::NowLoaded(_) => render::render(),
             Event::GameVersionLoaded(outcome) => on_game_version_loaded(model, outcome),
@@ -386,6 +399,8 @@ impl AppTrait for App {
             selected_ship_wiki: model.selected_ship_wiki.clone(),
             local_ship: model.local_ship.clone(),
             local_compare: model.local_compare.clone(),
+            local_consumables: model.local_consumables.clone(),
+            local_skills_wiki: model.local_skills_wiki.clone(),
             local_data_ready: model.local_data.is_some(),
         }
     }

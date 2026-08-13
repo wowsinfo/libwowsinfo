@@ -1,4 +1,4 @@
-//! Ship loadout views: consumables, commander skills, module upgrades, flags
+﻿//! Ship loadout views: consumables, commander skills, module upgrades, flags
 //! and the combined modifier set applied to the ship's stats.
 
 use std::collections::HashSet;
@@ -25,6 +25,7 @@ pub struct LocalBuildConfig {
 /// One consumable variant shown on the ship detail.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Facet)]
 pub struct ConsumableView {
+    pub key: String,
     pub name: String,
     pub description: String,
     pub r#type: String,
@@ -69,6 +70,31 @@ pub struct FlagView {
     pub summary: String,
 }
 
+/// A ship in the research tree (`next_ships`).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Facet)]
+pub struct NextShip {
+    pub ship_id: u64,
+    pub index: String,
+    pub name: String,
+    pub tier: i64,
+}
+
+/// Resolve the research-tree entries for a ship.
+#[must_use]
+pub fn next_ship_views(data: &GameData, lang: &LangMap, ship: &ShipInfo) -> Vec<NextShip> {
+    ship.next_ships
+        .iter()
+        .filter_map(|id| {
+            data.ships.get(id).map(|next| NextShip {
+                ship_id: *id,
+                index: next.index.clone(),
+                name: lang.get(&next.name),
+                tier: next.tier,
+            })
+        })
+        .collect()
+}
+
 fn fmt_percent(value: f64) -> String {
     if value >= 1.0 {
         format!("+{:.0}%", (value - 1.0) * 100.0)
@@ -98,7 +124,7 @@ pub fn modifier_summary(lang: &LangMap, ship_class: &str, mods: &ModifierSet) ->
         })
         .take(3)
         .collect::<Vec<_>>()
-        .join(" · ")
+        .join(" 路 ")
 }
 
 fn ability_params<'a>(data: &'a GameData, name: &str, ship_class: &str) -> Option<&'a serde_json::Value> {
@@ -122,6 +148,7 @@ pub fn consumable_views(data: &GameData, lang: &LangMap, ship: &ShipInfo) -> Vec
                 continue;
             };
             out.push(ConsumableView {
+                key: consumable.name.clone(),
                 name: lang.get(&ability.name),
                 description: lang.get(&ability.description),
                 r#type: consumable.r#type.clone(),
@@ -142,6 +169,7 @@ pub fn consumable_views(data: &GameData, lang: &LangMap, ship: &ShipInfo) -> Vec
     }
     out
 }
+
 
 /// The commander skills available to the ship's class, ordered by tier.
 #[must_use]
@@ -171,7 +199,7 @@ pub fn skill_views(
     out
 }
 
-fn skill_summary(lang: &LangMap, ship_class: &str, skill: &super::gamedata::SkillInfo) -> String {
+pub(crate) fn skill_summary(lang: &LangMap, ship_class: &str, skill: &super::gamedata::SkillInfo) -> String {
     let base = modifier_summary(lang, ship_class, &skill.modifiers);
     let trigger = modifier_summary(lang, ship_class, &skill.trigger_modifiers);
     let condition = match skill.trigger_type.as_str() {
@@ -181,7 +209,7 @@ fn skill_summary(lang: &LangMap, ship_class: &str, skill: &super::gamedata::Skil
     };
     match (base.is_empty(), condition, trigger.is_empty()) {
         (true, Some(label), false) => format!("{label}: {trigger}"),
-        (false, Some(label), false) => format!("{base} · {label}: {trigger}"),
+        (false, Some(label), false) => format!("{base} 路 {label}: {trigger}"),
         (_, _, _) => base,
     }
 }
