@@ -85,6 +85,19 @@ fun SurvivabilitySection(hull: HullStats, adjusted: AdjustedStats) {
 }
 
 @Composable
+fun CamoSection(camos: List<String>) {
+    SectionCard("Camos") {
+        camos.forEach { camo ->
+            Text(
+                text = camo,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun healthText(base: Double, adjusted: Double): String {
     val adjustedText = fmtInt(adjusted)
     return if (abs(base - adjusted) > 0.5) "$adjustedText ($base)" else adjustedText

@@ -30,7 +30,9 @@ pub use aircraft::{parse_aircrafts, AircraftInfo};
 pub use aircraft_views::{
     air_support_plane, aircraft_slot_views, AircraftDetail, AircraftOptionView, AircraftSlotView,
 };
-pub use compare::{build_local_compare, CompareRow, CompareShipHeader, LocalCompare};
+pub use compare::{
+    build_local_compare, similar_ships, CompareRow, CompareShipHeader, LocalCompare, SimilarShip,
+};
 pub use gamedata::{
     parse_game_data, AbilityInfo, AchievementInfo, CommanderSkill, ConsumableInfo, GameData,
     ShipInfo,
@@ -43,7 +45,7 @@ pub use components::{
 pub use lang::{parse_lang, LangMap};
 pub use local_ship::{
     build_local_ship_wiki, LocalShipWiki, MainBatteryView, ModuleOptionView, ModuleSlotView,
-    PenCurveView, ShellView, SimilarShip, TorpedoView,
+    PenCurveView, ShellView, TorpedoView,
 };
 pub use loadouts::{
     combined_modifiers, consumable_views, flag_views, modifier_summary, next_ship_views,

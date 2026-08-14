@@ -312,6 +312,9 @@ pub struct Model {
     local_skills_wiki: Vec<wiki::LocalSkillWikiEntry>,
     /// Raw `lang.json` string so the language can be re-parsed on change.
     raw_lang_json: Option<String>,
+    /// True once the user picked a language this session; the init restore
+    /// must not overwrite it.
+    language_overridden: bool,
     downloading_achievements: bool,
     /// True while the paginated ship encyclopedia download is in progress.
     downloading_warship: bool,

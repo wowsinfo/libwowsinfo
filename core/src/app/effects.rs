@@ -423,7 +423,9 @@ pub(super) fn on_kv_loaded(model: &mut Model, key: String, value: KvOutcome) -> 
                 }
             }
             data::local::USER_LANGUAGE => {
-                if let Ok(language) = serde_json::from_str::<String>(&json) {
+                if !model.language_overridden
+                    && let Ok(language) = serde_json::from_str::<String>(&json)
+                {
                     model.api_language = language;
                 }
             }

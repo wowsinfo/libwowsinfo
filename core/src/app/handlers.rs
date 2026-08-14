@@ -253,6 +253,7 @@ pub(super) fn set_language(model: &mut Model, language: String) -> Command<Effec
     } else {
         language
     };
+    model.language_overridden = true;
     if let Some(config) = model.config.as_mut() {
         config.language = model.api_language.clone();
     }

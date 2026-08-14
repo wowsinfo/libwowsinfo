@@ -139,6 +139,8 @@ pub struct GameData {
     pub flags: Vec<FlagInfo>,
     /// Commander skills keyed by skill name.
     pub skills: HashMap<String, SkillInfo>,
+    /// Exteriors (camos/skins/flags) keyed by key, mapped to their name IDS.
+    pub exteriors: HashMap<String, String>,
 }
 
 fn get<'a>(json: &'a Value, key: &str, default: &'a Value) -> &'a Value {
@@ -428,6 +430,15 @@ pub fn parse_game_data(json: &Value) -> GameData {
         })
         .unwrap_or_default();
 
+    let exteriors = get(json, "exteriors", &empty)
+        .as_object()
+        .map(|map| {
+            map.iter()
+                .map(|(key, value)| (key.clone(), str_field(value, "name")))
+                .collect()
+        })
+        .unwrap_or_default();
+
     GameData {
         ships,
         abilities,
@@ -438,5 +449,6 @@ pub fn parse_game_data(json: &Value) -> GameData {
         modernizations,
         flags,
         skills,
+        exteriors,
     }
 }

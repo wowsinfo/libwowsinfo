@@ -79,6 +79,9 @@ fun WikiShipDetailScreen(
             ship.hull?.let { hull ->
                 item { SurvivabilitySection(hull, ship.adjusted) }
             }
+            if (ship.camos.isNotEmpty()) {
+                item { CamoSection(ship.camos) }
+            }
             if (ship.consumables.isNotEmpty()) {
                 item { ConsumablesSection(ship.consumables, ship.adjusted) }
             }

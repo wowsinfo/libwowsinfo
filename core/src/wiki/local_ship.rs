@@ -10,6 +10,7 @@ use facet::Facet;
 use serde::{Deserialize, Serialize};
 
 use super::aircraft_views::{aircraft_slot_views, air_support_plane, AircraftDetail, AircraftSlotView};
+use super::compare::{similar_ships, SimilarShip};
 use super::gamedata::{GameData, ShipInfo};
 use super::penetration::{penetration_curve, BallisticShell};
 use super::projectile::ProjectileInfo;
@@ -125,17 +126,6 @@ pub struct ModuleSlotView {
     pub options: Vec<ModuleOptionView>,
 }
 
-/// A similar ship (same tier and type).
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Facet)]
-pub struct SimilarShip {
-    pub ship_id: u64,
-    pub index: String,
-    pub name: String,
-    pub tier: i64,
-    pub nation: String,
-    pub ship_type: String,
-}
-
 /// The full local ship wiki entry.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Facet)]
 pub struct LocalShipWiki {
@@ -156,6 +146,8 @@ pub struct LocalShipWiki {
     pub cost_xp: i64,
     pub next_ships: Vec<NextShip>,
     pub camo_count: i64,
+    /// Localised names of the ship's permanent camouflages.
+    pub camos: Vec<String>,
     pub modules: Vec<ModuleSlotView>,
     pub hull: Option<HullStats>,
     pub main_battery: Option<MainBatteryView>,
@@ -447,6 +439,12 @@ pub fn build_local_ship_wiki(
         cost_xp: ship.cost_xp,
         next_ships: next_ship_views(data, lang, ship),
         camo_count: ship.permoflages.len() as i64,
+        camos: ship
+            .permoflages
+            .iter()
+            .filter_map(|key| data.exteriors.get(key))
+            .map(|name| lang.get(name))
+            .collect(),
         modules: slots,
         hull: build.hull.clone(),
         main_battery,
@@ -471,28 +469,4 @@ pub fn build_local_ship_wiki(
         penetration_curves,
         similar_ships,
     })
-}
-
-fn similar_ships(data: &GameData, lang: &LangMap, ship: &ShipInfo) -> Vec<SimilarShip> {
-    let mut out: Vec<SimilarShip> = data
-        .ships
-        .iter()
-        .filter(|(id, candidate)| {
-            **id != ship.id
-                && candidate.tier == ship.tier
-                && candidate.r#type == ship.r#type
-                && candidate.paper_ship == ship.paper_ship
-        })
-        .map(|(id, candidate)| SimilarShip {
-            ship_id: *id,
-            index: candidate.index.clone(),
-            name: lang.get(&candidate.name),
-            tier: candidate.tier,
-            nation: candidate.region.clone(),
-            ship_type: candidate.r#type.clone(),
-        })
-        .collect();
-    out.sort_by(|a, b| a.nation.cmp(&b.nation).then(a.name.cmp(&b.name)));
-    out.truncate(24);
-    out
 }
