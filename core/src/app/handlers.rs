@@ -183,17 +183,20 @@ pub(super) fn load_ship_wiki(model: &mut Model, ship_id: u64) -> Command<Effect,
         .then_send(|result| Event::ShipWikiLoaded(http_outcome(result)))
 }
 
-/// Parse the bundled `wowsinfo.json` and `lang.json` into memory (local mode).
+/// Decompress and parse the bundled `wowsinfo.zst` / `lang.zst` into memory
+/// (local mode). The payloads are the raw compressed asset bytes.
 pub(super) fn set_local_data(
     model: &mut Model,
-    ships: String,
-    lang: String,
+    ships: Vec<u8>,
+    lang: Vec<u8>,
 ) -> Command<Effect, Event> {
-    let ships_json = serde_json::from_str(&ships).unwrap_or_default();
-    let lang_json = serde_json::from_str(&lang).unwrap_or_default();
+    let ships_text = wiki::decompress_zstd(&ships).unwrap_or_default();
+    let lang_text = wiki::decompress_zstd(&lang).unwrap_or_default();
+    let ships_json = serde_json::from_str(&ships_text).unwrap_or_default();
+    let lang_json = serde_json::from_str(&lang_text).unwrap_or_default();
     model.local_data = Some(wiki::parse_game_data(&ships_json));
     model.local_lang = wiki::parse_lang(&lang_json, &model.api_language);
-    model.raw_lang_json = Some(lang);
+    model.raw_lang_json = Some(lang_text);
     refresh_local_lang(model);
     model.local_selection = wiki::ModuleSelection::default();
     model.local_skills.clear();

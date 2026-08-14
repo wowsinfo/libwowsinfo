@@ -101,10 +101,11 @@ pub enum Event {
     LoadShipWiki {
         ship_id: u64,
     },
-    /// Load the bundled `wowsinfo.json` and `lang.json` for local wiki mode.
+    /// Load the bundled `wowsinfo.zst` and `lang.zst` for local wiki mode
+    /// (zstd frames, decompressed in memory on the Rust side).
     SetLocalData {
-        ships: String,
-        lang: String,
+        ships: Vec<u8>,
+        lang: Vec<u8>,
     },
     /// Fill the warship encyclopedia from the local game data.
     LoadLocalWarships,

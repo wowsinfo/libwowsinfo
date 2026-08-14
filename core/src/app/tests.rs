@@ -268,13 +268,9 @@ fn local_data_drives_ship_wiki_and_warship_list() {
     })
     .to_string();
 
-    let _ = app.update(
-        Event::SetLocalData {
-            ships: ships.clone(),
-            lang,
-        },
-        &mut model,
-    );
+    let ships = zstd::stream::encode_all(ships.as_bytes(), 3).expect("compress ships");
+    let lang = zstd::stream::encode_all(lang.as_bytes(), 3).expect("compress lang");
+    let _ = app.update(Event::SetLocalData { ships, lang }, &mut model);
     assert!(app.view(&model).local_data_ready);
     let _ = app.update(Event::LoadLocalWarships, &mut model);
     assert_eq!(app.view(&model).warship.len(), 1);

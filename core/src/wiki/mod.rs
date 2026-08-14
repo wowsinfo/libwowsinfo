@@ -5,6 +5,8 @@
 //! bundles `wowsinfo.json` from WoWs-Game-Data. Both are parsed here without
 //! any API calls, mirroring `local_pr()`.
 
+use std::io::Read;
+
 mod aircraft;
 mod aircraft_views;
 mod compare;
@@ -63,3 +65,15 @@ pub use wiki_lists::{all_consumable_views, all_skill_views, LocalSkillWikiEntry}
 pub use ship_builder::{
     build_ship_build, module_slots, ModuleOption, ModuleSelection, ShipBuild,
 };
+
+/// Decompress a zstd frame in memory into a UTF-8 string.
+///
+/// The bundled assets are `wowsinfo.zst` / `lang.zst` (zstd level 19);
+/// decompression happens on the Rust side so the app only has to ship and
+/// pass the compressed bytes.
+pub fn decompress_zstd(bytes: &[u8]) -> std::io::Result<String> {
+    let mut decoder = zstd::stream::read::Decoder::new(bytes)?;
+    let mut out = String::new();
+    decoder.read_to_string(&mut out)?;
+    Ok(out)
+}

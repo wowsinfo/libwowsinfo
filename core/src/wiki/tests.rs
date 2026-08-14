@@ -6,6 +6,13 @@ use serde_json::json;
 use super::*;
 
 #[test]
+fn zstd_decompress_roundtrip() {
+    let input = r#"{"ships":{},"projectiles":{}}"#;
+    let compressed = zstd::stream::encode_all(input.as_bytes(), 3).expect("compress");
+    assert_eq!(decompress_zstd(&compressed).expect("decompress"), input);
+}
+
+#[test]
 fn parses_game_constants() {
     let json = json!({
         "VERSION": {"VERSION": "15.7", "BUILD": 13015811, "PATCH": 0.0},

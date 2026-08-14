@@ -2,8 +2,6 @@ package com.wowsinfo.libwowsinfo
 
 import android.os.Bundle
 import android.content.Intent
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,12 +29,7 @@ class WikiActivity : ComponentActivity() {
                 ) {
                     val viewModel by core.viewModel.collectAsState()
                     LaunchedEffect(Unit) {
-                        withContext(Dispatchers.IO) {
-                            val ships = assets.open("wowsinfo.json").bufferedReader().use { it.readText() }
-                            val lang = assets.open("lang.json").bufferedReader().use { it.readText() }
-                            core.update(Event.SetLocalData(ships, lang))
-                            core.update(Event.LoadLocalWarships)
-                        }
+                        core.update(Event.LoadLocalWarships)
                         core.update(Event.LoadWiki(WikiDataset.COLLECTIONS))
                     }
                     WikiScreen(
