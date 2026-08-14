@@ -19,27 +19,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.wowsinfo.libwowsinfo.AirDefenseStats
-import com.wowsinfo.libwowsinfo.AirSupportStats
+import com.wowsinfo.libwowsinfo.AirstrikeView
 import com.wowsinfo.libwowsinfo.AircraftDetail
 import com.wowsinfo.libwowsinfo.AircraftSlotView
 import com.wowsinfo.libwowsinfo.AdjustedStats
+import com.wowsinfo.libwowsinfo.ArmorView
 import com.wowsinfo.libwowsinfo.BurstInfo
 import com.wowsinfo.libwowsinfo.AuraInfo
-import com.wowsinfo.libwowsinfo.DepthChargeStats
+import com.wowsinfo.libwowsinfo.DepthChargeView
+import com.wowsinfo.libwowsinfo.DispersionView
+import com.wowsinfo.libwowsinfo.FiringArcView
 import com.wowsinfo.libwowsinfo.HullStats
 import com.wowsinfo.libwowsinfo.MainBatteryView
 import com.wowsinfo.libwowsinfo.MobilityStats
 import com.wowsinfo.libwowsinfo.PenCurveView
 import com.wowsinfo.libwowsinfo.PingerStats
+import com.wowsinfo.libwowsinfo.ShellDpmView
 import com.wowsinfo.libwowsinfo.ShellView
-import com.wowsinfo.libwowsinfo.SpecialStats
+import com.wowsinfo.libwowsinfo.SpecialAbilityView
 import com.wowsinfo.libwowsinfo.SubmarineBatteryStats
+import com.wowsinfo.libwowsinfo.TorpedoDetailView
 import com.wowsinfo.libwowsinfo.TorpedoView
 import com.wowsinfo.libwowsinfo.VisibilityStats
 import com.wowsinfo.libwowsinfo.ui.SectionTitle
 import com.wowsinfo.libwowsinfo.ui.Stat
 import com.wowsinfo.libwowsinfo.ui.chartColor
 import com.wowsinfo.libwowsinfo.ui.formatNumber
+import coil.compose.AsyncImage
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.floor
@@ -81,18 +87,102 @@ fun SurvivabilitySection(hull: HullStats, adjusted: AdjustedStats) {
                 Triple("Torpedo protection", "${fmt(hull.protection)}%", 1),
             ),
         )
+        hull.survivability?.let { surv ->
+            if (surv.sections.isNotEmpty()) {
+                Text(
+                    text = "HP Sections",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                surv.sections.forEach { section ->
+                    val regenPct = section.regenRatio * 100
+                    val regenText = if (regenPct == floor(regenPct)) fmtInt(regenPct) else fmt(regenPct)
+                    Text(
+                        text = "${section.name}: ${fmtInt(section.hp)} HP · Regen $regenText%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            surv.fire?.let { fire ->
+                Text(
+                    text = "Fire: ${fire.spots} spots · ${fmt(fire.duration)} s · " +
+                        "${fmtInt(fire.dps)} DPS · ${fmtInt(fire.totalDamage)} dmg",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            surv.flood?.let { flood ->
+                Text(
+                    text = "Flood: ${flood.spots} spots · ${fmt(flood.duration)} s · " +
+                        "${fmtInt(flood.dps)} DPS · ${fmtInt(flood.totalDamage)} dmg",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun CamoSection(camos: List<String>) {
-    SectionCard("Camos") {
-        camos.forEach { camo ->
+fun ArmorSection(armor: ArmorView) {
+    SectionCard("Armor") {
+        StatGrid(
+            listOf(
+                Triple("Hull zones", "${armor.zoneCount}", 1),
+                Triple("Max thickness", "${fmt(armor.maxZoneThickness)} mm", 2),
+            ),
+        )
+        if (armor.zoneGroups.isNotEmpty()) {
+            armor.zoneGroups.take(8).forEach { group ->
+                Text(
+                    text = "${fmt(group.thickness)} mm × ${group.count}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (armor.turrets.isNotEmpty()) {
             Text(
-                text = camo,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "Turret armor",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
             )
+            armor.turrets.forEachIndexed { index, turret ->
+                Text(
+                    text = "Turret ${index + 1}: ${turret.barrels}×${fmt(turret.caliber * 1000, 0)} mm · " +
+                        "Armor ${fmt(turret.armor, 0)} mm · Barbette ${fmt(turret.barbette, 0)} mm",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CamoSection(camos: List<String>, camoKeys: List<String>) {
+    SectionCard("Camos") {
+        camos.forEachIndexed { index, camo ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val key = camoKeys.getOrNull(index).orEmpty()
+                if (key.isNotBlank()) {
+                    val folder = if (key.startsWith("PCEC")) "camouflages" else "permoflages"
+                    AsyncImage(
+                        model = "file:///android_asset/$folder/$key.png",
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 6.dp),
+                    )
+                }
+                Text(
+                    text = camo,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -125,6 +215,11 @@ fun MainBatterySection(battery: MainBatteryView, adjusted: AdjustedStats, curves
         }
         StatGrid(
             listOf(
+                Triple(
+                    "Caliber",
+                    if (battery.caliberMm > 0) "${fmt(battery.caliberMm, 0)} mm" else "—",
+                    0,
+                ),
                 Triple("Configuration", battery.configuration, 1),
                 Triple("Range", statWithBase(battery.rangeM / 1000, adjusted.gunRangeM / 1000, "km"), 2),
                 Triple("Reload", statWithBase(battery.reloadS, adjusted.gunReloadS, "s"), 3),
@@ -133,14 +228,91 @@ fun MainBatterySection(battery: MainBatteryView, adjusted: AdjustedStats, curves
         )
         StatGrid(
             listOf(
-                Triple("Sigma", fmt(battery.sigma), 5),
-                Triple("Burst", battery.burst?.let { "${it.shotsCount} shells" } ?: "—", 6),
+                Triple(
+                    "Turn 180°",
+                    if (battery.turnTimeS > 0) "${fmt(battery.turnTimeS)} s" else "—",
+                    5,
+                ),
+                Triple(
+                    "RoF",
+                    if (battery.rof > 0) fmt(battery.rof * battery.barrels, 0) else "—",
+                    6,
+                ),
+                Triple("Sigma", fmt(battery.sigma), 7),
             ),
         )
+        if (battery.ammoSwitchS > 0) {
+            StatGrid(
+                listOf(
+                    Triple("Ammo switch", "${fmt(battery.ammoSwitchS)} s", 1),
+                    Triple("Barrels", battery.barrels.toString(), 2),
+                ),
+            )
+        }
+        battery.dispersion?.let { DispersionSection(it) }
+        if (battery.firingArcs.isNotEmpty()) {
+            FiringArcsSection(battery.firingArcs)
+        }
         battery.burst?.let { burst -> BurstSection(burst) }
         battery.shells.forEach { shell ->
-            ShellCard(shell = shell, curves = curves)
+            ShellCard(
+                shell = shell,
+                curves = curves,
+                dpm = battery.perShellDpm.firstOrNull { it.shellKey == shell.key },
+            )
         }
+    }
+}
+
+@Composable
+private fun DispersionSection(disp: DispersionView) {
+    Text(
+        text = "Dispersion",
+        style = MaterialTheme.typography.labelLarge,
+        color = chartColor(6),
+        fontWeight = FontWeight.Bold,
+    )
+    Text(
+        text = "Max range: H ${fmt(disp.atMax.horizontalM)} m · V ${fmt(disp.atMax.verticalM)} m",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    disp.samples.forEach { point ->
+        Text(
+            text = "${fmt(point.rangeM / 1000)} km: H ${fmt(point.horizontalM)} m · " +
+                "V ${fmt(point.verticalM)} m",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    Text(
+        text = "Formula (X = range in km):\nH = ${disp.formulaHorizontal}\n" +
+            "V ≥ delim = ${disp.formulaVertical}\nV < delim = ${disp.formulaVerticalShort}",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
+        text = "Delimiter ${fmt(disp.delimDistM / 1000)} km · Taper ${fmt(disp.taperDistM / 1000)} km",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun FiringArcsSection(arcs: List<FiringArcView>) {
+    Text(
+        text = "Firing Arcs",
+        style = MaterialTheme.typography.labelLarge,
+        color = chartColor(4),
+        fontWeight = FontWeight.Bold,
+    )
+    arcs.forEach { arc ->
+        Text(
+            text = "${arc.name}: H ${fmt(arc.horizMin, 0)}°…${fmt(arc.horizMax, 0)}° · " +
+                "V ${fmt(arc.vertMin, 0)}°…${fmt(arc.vertMax, 0)}°",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -173,10 +345,81 @@ fun TorpedoSection(torpedo: TorpedoView, adjusted: AdjustedStats) {
                 Triple("Launchers", torpedo.configuration, 1),
                 Triple("Reload", statWithBase(torpedo.reloadS, adjusted.torpReloadS, "s"), 2),
                 Triple("Rotation", statWithBase(torpedo.rotationDegS, adjusted.torpRotationDegS, "°/s"), 3),
-                Triple("Single shot", if (torpedo.singleShot) "Yes" else "No", 4),
+                Triple(
+                    "Turn 180°",
+                    if (torpedo.turnTimeS > 0) "${fmt(torpedo.turnTimeS)} s" else "—",
+                    4,
+                ),
             ),
         )
-        torpedo.shells.forEach { shell -> TorpedoShellCard(shell) }
+        if (torpedo.torpedoCount > 0) {
+            StatGrid(
+                listOf(
+                    Triple("Tubes", torpedo.torpedoCount.toString(), 5),
+                    Triple("Single shot", if (torpedo.singleShot) "Yes" else "No", 6),
+                ),
+            )
+        }
+        torpedo.torpedoes.forEach { torp -> TorpedoDetailCard(torp) }
+        if (torpedo.torpedoes.isEmpty()) {
+            torpedo.shells.forEach { shell -> TorpedoShellCard(shell) }
+        }
+    }
+}
+
+@Composable
+private fun TorpedoDetailCard(torp: TorpedoDetailView) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = buildString {
+                append(torp.name)
+                if (torp.deepWater) append(" · Deep Water")
+            },
+            style = MaterialTheme.typography.labelLarge,
+            color = chartColor(3),
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = buildString {
+                append("DMG ${formatNumber(torp.damage)}")
+                if (torp.alphaDamage > 0) append(" · Alpha ${formatNumber(torp.alphaDamage)}")
+                if (torp.rangeKm > 0) append(" · ${fmt(torp.rangeKm)} km")
+                append(" · ${fmt(torp.speedKt)} kn")
+                if (torp.detectabilityKm > 0) append(" · Detect ${fmt(torp.detectabilityKm)} km")
+                if (torp.reactionTimeS > 0) append(" · Reaction ${fmt(torp.reactionTimeS)} s")
+                torp.floodChance?.let { append(" · Flood ${fmt(it)}%") }
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = buildString {
+                torp.armingDistanceM?.let { append("Arming ${fmtInt(it)} m · ") }
+                torp.depthM?.let { append("Depth ${fmt(it, 2)} m · ") }
+                torp.splashArmorCoeff?.let { append("Splash armor ${fmt(it)} · ") }
+                torp.splashCubeSize?.let { append("Cube ${fmt(it)} · ") }
+                torp.pingDamageCoeff?.let { append("Ping dmg ${fmt(it)}× · ") }
+                append("Salvo ${formatNumber(torp.salvoDamage)}")
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        torp.acousticDetection?.let { acoustic ->
+            Text(
+                text = "Acoustic homing: radius ${fmtInt(acoustic.searchRadius)} m · " +
+                    "angle ${fmt(acoustic.searchAngle, 0)}° · yaw ${fmt(acoustic.yawChangeSpeed)}°/s · " +
+                    "depth ${fmt(acoustic.maxDepthLevel)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (torp.canHitClasses.isNotEmpty()) {
+            Text(
+                text = "Hits: ${torp.canHitClasses.joinToString(", ")}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -190,6 +433,22 @@ fun AirDefenseSection(airDefense: AirDefenseStats, adjusted: AdjustedStats) {
                 listOf(
                     Triple("Total DPS", statWithBase(baseDps, adjusted.aaDps, ""), 0),
                 ),
+            )
+        }
+        airDefense.bubbles?.let { bubbles ->
+            Text(
+                text = "Flak Clouds",
+                style = MaterialTheme.typography.labelLarge,
+                color = chartColor(5),
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "Inner ${bubbles.inner} · Outer ${bubbles.outer} · " +
+                    "${fmt(bubbles.minRange)}-${fmt(bubbles.maxRange)} km · " +
+                    "DMG ${fmtInt(bubbles.damage)} · Hit ${fmt(bubbles.hitChance * 100)}% · " +
+                    "Spawn ${fmt(bubbles.spawnTime)} s",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         val bands = listOf(
@@ -206,45 +465,124 @@ fun AirDefenseSection(airDefense: AirDefenseStats, adjusted: AdjustedStats) {
 @Composable
 private fun AuraRow(label: String, aura: AuraInfo, colorIndex: Int) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = chartColor(colorIndex),
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "DPS ${fmtInt(aura.dps)} · " +
-                    "${fmt(aura.minRange)}-${fmt(aura.maxRange)} km · " +
-                    "Hit ${fmt(aura.hitChance * 100)}%",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = chartColor(colorIndex),
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "DPS ${fmtInt(aura.dps)} · " +
+                        "${fmt(aura.minRange)}-${fmt(aura.maxRange)} km · " +
+                        "Hit ${fmt(aura.hitChance * 100)}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val details = buildString {
+                if (aura.explosionCount > 0) append("Explosions ${aura.explosionCount} · ")
+                if (aura.shotTravelTime > 0) append("Shot travel ${fmt(aura.shotTravelTime)} s · ")
+                if (aura.shotDelay > 0) append("Shot delay ${fmt(aura.shotDelay)} s · ")
+                if (aura.damage > 0) append("DMG ${fmtInt(aura.damage)} · ")
+                if (aura.innerBubbleCount > 0 || aura.outerBubbleCount > 0) {
+                    append(
+                        "Flak ${aura.innerBubbleCount}+${aura.outerBubbleCount} · " +
+                            "R ${fmt(aura.bubbleRadius)} km · ${fmt(aura.bubbleDuration)} s · " +
+                            "DMG ${fmtInt(aura.bubbleDamage)} · ",
+                    )
+                }
+                if (aura.guns.isNotEmpty()) {
+                    append("Guns ${aura.guns.joinToString(" + ") { "${it.count}×${it.each}" }}")
+                }
+            }
+            if (details.isNotEmpty()) {
+                Text(
+                    text = details,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
 
 @Composable
-fun MobilitySection(mobility: MobilityStats, adjusted: AdjustedStats) {
+fun MobilitySection(hull: HullStats, adjusted: AdjustedStats) {
     SectionCard("Mobility") {
         StatGrid(
             listOf(
-                Triple("Speed", statWithBase(mobility.speed, adjusted.speed, "kn"), 1),
-                Triple("Turning radius", "${fmtInt(mobility.turningRadius)} m", 2),
-                Triple("Rudder", statWithBase(mobility.rudderTime, adjusted.rudderTime, "s"), 3),
+                Triple("Speed", statWithBase(hull.mobility.speed, adjusted.speed, "kn"), 1),
+                Triple("Turning radius", "${fmtInt(hull.mobility.turningRadius)} m", 2),
+                Triple("Rudder", statWithBase(hull.mobility.rudderTime, adjusted.rudderTime, "s"), 3),
             ),
         )
+        hull.maneuverability?.let { man ->
+            StatGrid(
+                listOf(
+                    Triple("Reverse speed", "${fmt(man.maxReverseSpeed)} kn", 4),
+                    Triple(
+                        "Dive speed",
+                        man.submarine?.let { "${fmt(it.diveSpeed)} m/s" } ?: "—",
+                        5,
+                    ),
+                ),
+            )
+            man.submarine?.let { sub ->
+                Text(
+                    text = "Submarine modes",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                SubmarineModeLine("Surface", sub.surfaceSpeed, sub.surfaceReverse)
+                SubmarineModeLine("Periscope", sub.periscopeSpeed, sub.periscopeReverse)
+                SubmarineModeLine("Max depth", sub.maxDepthSpeed, sub.maxDepthReverse)
+                Text(
+                    text = "Diving plane shift: ${fmt(sub.divingPlaneShiftTime)} s",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            man.raw?.let { raw ->
+                Text(
+                    text = buildString {
+                        append("Engine power ${fmt(raw.enginePower, 0)}")
+                        append(" · Side drag ${fmt(raw.sideDragCoef, 0)}")
+                        append(" · Backward drag ${fmt(raw.backwardMovementDragCoef)}")
+                        append(" · Backward power ×${fmt(raw.backwardPowerCoef)}")
+                        append(" · Speed coef ${fmt(raw.speedCoef)}")
+                        append(" · Rudder angle ${fmt(raw.maxRudderAngle)}°")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun ConcealmentSection(visibility: VisibilityStats, adjusted: AdjustedStats) {
+private fun SubmarineModeLine(label: String, forward: Double, reverse: Double) {
+    Text(
+        text = "$label: ${fmt(forward)} / ${fmt(reverse)} kn",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+fun ConcealmentSection(hull: HullStats, adjusted: AdjustedStats) {
+    val visibility = hull.visibility
     SectionCard("Concealment") {
         StatGrid(
             listOf(
@@ -253,7 +591,72 @@ fun ConcealmentSection(visibility: VisibilityStats, adjusted: AdjustedStats) {
                 Triple("Submarine", "${fmt(visibility.submarine)} km", 3),
             ),
         )
-        StatGrid(
+        hull.concealment?.let { concealment ->
+            StatGrid(
+                listOf(
+                    Triple("Fire (sea)", "${fmt(concealment.seaFire)} km", 4),
+                    Triple("Fire (air)", "${fmt(concealment.airFire)} km", 5),
+                    Triple("In smoke", "${fmt(visibility.seaInSmoke)} km", 6),
+                ),
+            )
+            if (concealment.periscopeDepth > 0 || concealment.deepWaterDepth > 0) {
+                Text(
+                    text = "Submarine detectability",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Periscope depth: ${fmt(concealment.periscopeDepth)} km · " +
+                        "Deep water: ${fmt(concealment.deepWaterDepth)} km",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (concealment.bySubmarineDepth.isNotEmpty()) {
+                Text(
+                    text = "By depth: " + concealment.bySubmarineDepth.joinToString(" · ") {
+                        "${it.first.replace('_', ' ')} ${fmt(it.second)} km"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (concealment.underwaterDepthCoeff.isNotEmpty()) {
+                Text(
+                    text = buildString {
+                        append("Depth coeff: ")
+                        append(
+                            concealment.underwaterDepthCoeff.joinToString(" · ") {
+                                "${fmt(it.first)} m ×${fmt(it.second)}"
+                            },
+                        )
+                        if (concealment.underwaterDepthCoeffPlane.isNotEmpty()) {
+                            append(" · plane ")
+                            append(
+                                concealment.underwaterDepthCoeffPlane.joinToString(" · ") {
+                                    "${fmt(it.first)} m ×${fmt(it.second)}"
+                                },
+                            )
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = buildString {
+                    append("Smoke factor ${fmt(concealment.smokeFactor)}")
+                    if (concealment.smokeFactorGk > 0) {
+                        append(" · GK smoke ${fmt(concealment.smokeFactorGk)}")
+                    }
+                    if (concealment.visibilityCoefGkByPlane > 0) {
+                        append(" · GK plane ${fmt(concealment.visibilityCoefGkByPlane)}")
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } ?: StatGrid(
             listOf(
                 Triple("In smoke", "${fmt(visibility.seaInSmoke)} km", 4),
                 Triple("Fire (sea)", "${fmt(visibility.seaFireCoeff)} km", 5),
@@ -282,13 +685,29 @@ fun BurstSection(burst: BurstInfo) {
 }
 
 @Composable
-fun AirSupportSection(airSupport: AirSupportStats, plane: AircraftDetail?) {
+fun AirSupportSection(airSupport: AirstrikeView, plane: AircraftDetail?) {
     SectionCard("Air Support") {
         StatGrid(
             listOf(
-                Triple("Charges", airSupport.chargesNum.toString(), 1),
-                Triple("Reload", "${fmt(airSupport.reload)} s", 2),
-                Triple("Range", "${fmt(airSupport.range / 1000)} km", 3),
+                Triple("Charges", airSupport.charges.toString(), 1),
+                Triple("Reload", "${fmt(airSupport.reloadS)} s", 2),
+                Triple("Range", "${fmt(airSupport.rangeKm)} km", 3),
+                Triple("Auto", if (airSupport.autoUsage) "Yes" else "No", 4),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("Min dist", "${fmtInt(airSupport.minDistM)} m", 1),
+                Triple("Max dist", "${fmtInt(airSupport.maxDistM)} m", 2),
+                Triple("Flight dist", "${fmtInt(airSupport.maxPlaneFlightDistM)} m", 3),
+                Triple("Climb", "${fmt(airSupport.climbAngleDeg)}°", 4),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("Fly away", "${fmt(airSupport.flyAwayTimeS)} s", 1),
+                Triple("Between shots", "${fmt(airSupport.timeBetweenShotsS)} s", 2),
+                Triple("Drop time", "${fmt(airSupport.timeFromHeavenS)} s", 3),
             ),
         )
         plane?.let { aircraft ->
@@ -334,14 +753,90 @@ fun AircraftSection(slot: AircraftSlotView) {
                 Triple("Visibility", "${fmt(aircraft.visibility)} km", 3),
             ),
         )
-        aircraft.attackCount?.let { attack ->
-            val attacker = aircraft.attacker ?: 1
-            StatGrid(
-                listOf(
-                    Triple("Per attack", "$attacker x $attack", 4),
-                    Triple("Hangar", aircraft.maxAircraft?.toString() ?: "—", 5),
-                    Triple("Restore", aircraft.restoreTime?.let { "${fmt(it)} s" } ?: "—", 6),
+        StatGrid(
+            listOf(
+                Triple(
+                    "Per attack",
+                    "${aircraft.attacker ?: 1} × ${aircraft.attackCount ?: 1}",
+                    4,
                 ),
+                Triple("Cooldown", aircraft.attackCooldown?.let { "${fmt(it)} s" } ?: "—", 5),
+                Triple("Interval", aircraft.attackInterval?.let { "${fmt(it)} s" } ?: "—", 0),
+                Triple("Hangar", aircraft.maxAircraft?.toString() ?: "—", 1),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("Restore", aircraft.restoreTime?.let { "${fmt(it)} s" } ?: "—", 2),
+                Triple("On deck", aircraft.maxNumberOnDeck?.toString() ?: "—", 3),
+                Triple("Start deck", aircraft.startOnDeck?.toString() ?: "—", 4),
+                Triple("Restore amt", aircraft.restoreAmount?.toString() ?: "—", 5),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("Aim time", aircraft.aimingTime?.let { "${fmt(it)} s" } ?: "—", 0),
+                Triple("Aim speed", aircraft.aimingSpeedLimits.ifBlank { "—" }, 1),
+                Triple("Aim turn", aircraft.aimingTurnSpeedLimit?.let { fmt(it) } ?: "—", 2),
+                Triple(
+                    "Aim acc",
+                    aircraft.aimingAccuracyIncreaseRate?.let { "${fmt(it, 2)}/s" } ?: "—",
+                    3,
+                ),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("Prep time", aircraft.preparationTime?.let { "${fmt(it)} s" } ?: "—", 4),
+                Triple("Prep speed", aircraft.preparationSpeedLimits.ifBlank { "—" }, 5),
+                Triple("Prep turn", aircraft.preparationTurnSpeedLimit?.let { fmt(it) } ?: "—", 0),
+                Triple(
+                    "Drop point",
+                    aircraft.bombingDropPointTime?.let { "${fmt(it)} s" } ?: "—",
+                    1,
+                ),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("Climb", aircraft.angleOfClimb?.let { "${fmt(it)}°" } ?: "—", 2),
+                Triple("Dive", aircraft.angleOfDive?.let { "${fmt(it)}°" } ?: "—", 3),
+                Triple("Climb spd", aircraft.climbSpeedCoef?.let { "×${fmt(it)}" } ?: "—", 4),
+                Triple("Dive spd", aircraft.diveSpeedCoef?.let { "×${fmt(it)}" } ?: "—", 5),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("JATO", aircraft.jatoDuration?.let { "${fmt(it)} s" } ?: "—", 0),
+                Triple("JATO spd", aircraft.jatoSpeedMultiplier?.let { "×${fmt(it)}" } ?: "—", 1),
+                Triple("Boost", aircraft.maxForsageAmount?.let { fmt(it) } ?: "—", 2),
+                Triple("Boost regen", aircraft.forsageRegeneration?.let { fmt(it) } ?: "—", 3),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("Dmg taken", aircraft.damageTakenMultiplier?.let { "×${fmt(it)}" } ?: "—", 4),
+                Triple(
+                    "Attacker dmg",
+                    aircraft.attackerDamageTakenMultiplier?.let { "×${fmt(it)}" } ?: "—",
+                    5,
+                ),
+                Triple(
+                    "Post-attack inv",
+                    aircraft.postAttackInvulnerabilityDuration?.let { "${fmt(it)} s" } ?: "—",
+                    0,
+                ),
+                Triple("Bomb fall", aircraft.bombFallingTime?.let { "${fmt(it)} s" } ?: "—", 1),
+            ),
+        )
+        if (aircraft.planeConsumables.isNotEmpty()) {
+            Text(
+                text = "Plane consumables: " + aircraft.planeConsumables.joinToString(" · ") {
+                    "Slot ${it.slot}: " + it.abilities.joinToString(", ") +
+                        if (it.special) " (special)" else ""
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         aircraft.bomb?.let { bomb ->
@@ -375,15 +870,90 @@ fun PingerSection(pinger: PingerStats, adjusted: AdjustedStats) {
 }
 
 @Composable
-fun DepthChargeSection(depth: DepthChargeStats) {
+fun DepthChargeSection(depth: DepthChargeView) {
     SectionCard("Depth Charges") {
+        if (depth.name.isNotBlank()) {
+            Text(
+                text = depth.name,
+                style = MaterialTheme.typography.labelLarge,
+                color = chartColor(4),
+                fontWeight = FontWeight.Bold,
+            )
+        }
         StatGrid(
             listOf(
-                Triple("Reload", "${fmt(depth.reload)} s", 1),
-                Triple("Bombs", depth.bombs.toString(), 2),
-                Triple("Groups", depth.groups.toString(), 3),
+                Triple("Reload", "${fmt(depth.reloadS)} s", 1),
+                Triple("Config", "${depth.groups} × ${depth.bombs}", 2),
+                Triple("Damage", formatNumber(depth.damage), 3),
+                Triple("Fire", "${fmt(depth.fireChance)}%", 4),
+                Triple("Flood", "${fmt(depth.floodChance)}%", 5),
             ),
         )
+        depth.packs?.let { packs ->
+            StatGrid(
+                listOf(
+                    Triple("Shots/pack", packs.shots.toString(), 1),
+                    Triple("Max packs", packs.maxPacks.toString(), 2),
+                    Triple("Shot delay", "${fmt(packs.shotDelayS)} s", 3),
+                    Triple("Zone width", fmt(packs.centerZoneWidthPart), 4),
+                ),
+            )
+        }
+        if (depth.launchers.isNotEmpty()) {
+            Text(
+                text = "${depth.launcherCount} throwers · ${depth.bombsPerCharge} bombs per charge",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            depth.launchers.forEach { launcher ->
+                Text(
+                    text = "${launcher.name}: ${launcher.bombs} bomb(s) · " +
+                        "${fmt(launcher.shootAngleDeg)}° · dist ${fmt(launcher.shootDistance)} · " +
+                        "${launcher.horizontalSector} H / ${launcher.verticalSector} V",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Text(
+            text = buildString {
+                depth.sinkSpeed?.let { append("Sink speed (raw) ${fmt(it)} · ") }
+                depth.detonationDepthM?.let { append("Detonation depth ${fmt(it)} m · ") }
+                depth.splashRadiusM?.let { append("Splash radius ${fmt(it)} m · ") }
+                depth.alertDist?.let { append("Alert ${fmt(it)} · ") }
+                depth.explosivePower?.let { append("Explosive power ${fmt(it)} · ") }
+                depth.integralPower?.let { append("Integral power ${fmt(it)} · ") }
+                depth.fallDistance?.let { append("Fall dist ${fmt(it)} · ") }
+                depth.fallTime?.let { append("Fall time ${fmt(it)} s · ") }
+            }.trimEnd(' ', '·'),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (depth.pointsOfDamage.isNotEmpty()) {
+            Text(
+                text = "Damage falloff: " + depth.pointsOfDamage.joinToString(" · ") {
+                    "${it.range} → ${fmt(it.coefficient * 100)}%"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (depth.canHitClasses.isNotEmpty()) {
+            Text(
+                text = "Can hit: ${depth.canHitClasses.joinToString(", ")}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (depth.buoyancy.isNotEmpty()) {
+            Text(
+                text = "Buoyancy: " + depth.buoyancy.joinToString(" · ") {
+                    "${it.state} ×${fmt(it.coefficient)}"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -400,20 +970,69 @@ fun SubmarineBatterySection(battery: SubmarineBatteryStats, adjusted: AdjustedSt
 }
 
 @Composable
-fun SpecialSection(special: SpecialStats) {
-    SectionCard("Rage Mode") {
+fun SpecialSection(special: SpecialAbilityView) {
+    SectionCard("Special Ability") {
+        Text(
+            text = special.name,
+            style = MaterialTheme.typography.labelLarge,
+            color = chartColor(1),
+            fontWeight = FontWeight.Bold,
+        )
         StatGrid(
             listOf(
-                Triple("Duration", "${fmt(special.boostDuration)} s", 1),
-                Triple("Hits", special.requiredHits.toString(), 2),
-                Triple("Radius", "${fmt(special.radius / 1000)} km", 3),
+                Triple("Duration", "${fmt(special.durationS)} s", 1),
+                Triple(
+                    "Preparation",
+                    if (special.preparationS > 0) "${fmt(special.preparationS)} s" else "—",
+                    2,
+                ),
+                Triple("Required", special.requiredCount.toString(), 3),
+                Triple("Auto usage", if (special.autoUsage) "Yes" else "No", 4),
             ),
         )
+        if (special.progressPerAction > 0) {
+            Text(
+                text = "Progress: ${fmt(special.progressPerAction)} per ${special.progressName.replace('_', ' ')}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (special.subRibbons.isNotEmpty()) {
+            Text(
+                text = "Ribbons: ${special.subRibbons.joinToString(", ")}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (special.inactivityDelayS > 0 && special.progressLossPerInterval > 0) {
+            Text(
+                text = "Inactive ${fmt(special.inactivityDelayS)} s · lose " +
+                    "${fmt(special.progressLossPerInterval)} every " +
+                    "${fmt(special.progressLossIntervalS)} s",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (special.modifiers.isNotEmpty()) {
+            Text(
+                text = "Modifiers",
+                style = MaterialTheme.typography.labelLarge,
+                color = chartColor(6),
+                fontWeight = FontWeight.Bold,
+            )
+            special.modifiers.forEach { line ->
+                Text(
+                    text = line,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun ShellCard(shell: ShellView, curves: List<PenCurveView>) {
+private fun ShellCard(shell: ShellView, curves: List<PenCurveView>, dpm: ShellDpmView? = null) {
     val color = when (shell.ammoType) {
         "AP" -> chartColor(0)
         "SAP" -> chartColor(4)
@@ -450,6 +1069,11 @@ private fun ShellCard(shell: ShellView, curves: List<PenCurveView>) {
                 if (shell.penHe != null) append(" · HE pen ${fmtInt(shell.penHe!!)} mm")
                 if (shell.penSap != null) append(" · SAP pen ${fmtInt(shell.penSap!!)} mm")
                 append(" · ${fmtInt(shell.weight)} kg · ${fmtInt(shell.speed)} m/s")
+                dpm?.let {
+                    append(" · DPM ${formatNumber(it.dpm)}")
+                    append(" · Salvo ${formatNumber(it.salvoDamage)} dmg")
+                    if (it.salvoWeightKg > 0) append(" · ${fmtInt(it.salvoWeightKg)} kg")
+                }
                 shell.overmatch?.let {
                     append(" · Overmatch ${fmtInt(shell.calibreMm / it)} mm")
                 }
@@ -457,6 +1081,26 @@ private fun ShellCard(shell: ShellView, curves: List<PenCurveView>) {
                 shell.ricochetAlways?.let { append(" · Always bounces ${fmt(it)}°") }
                 shell.fuseTime?.let { append(" · Fuse ${String.format(Locale.US, "%.3f", it)} s") }
             },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = buildString {
+                shell.airDrag?.let { append("Air drag ${fmt(it)} · ") }
+                shell.waterDrag?.let { append("Water drag ${fmt(it)} · ") }
+                shell.krupp?.let { append("Krupp ${fmtInt(it)} · ") }
+                shell.armingThreshold?.let { append("Arming ${fmtInt(it)} mm · ") }
+                shell.shellCap?.let { append(if (it) "Shell cap yes · " else "Shell cap no · ") }
+                shell.capNormalizeMaxAngle?.let { append("Cap angle ${fmt(it)}° · ") }
+                shell.underwaterDistFactor?.let { append("UW dist ×${fmt(it)} · ") }
+                shell.underwaterPenetrationFactor?.let { append("UW pen ×${fmt(it)} · ") }
+                shell.explosionRadius?.let { append("Blast radius ${fmt(it)} m · ") }
+                shell.splashRadius?.let { append("Splash radius ${fmt(it)} m · ") }
+                if (shell.distParams.isNotEmpty()) {
+                    append("Dist params [${shell.distParams.joinToString(", ") { fmt(it) }}] · ")
+                }
+                shell.distTile?.let { append("Dist tile ${fmt(it)} · ") }
+            }.trimEnd(' ', '·'),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

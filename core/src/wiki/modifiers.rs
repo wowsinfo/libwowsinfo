@@ -13,6 +13,7 @@ use facet::Facet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::components::GunStats;
 use super::ship_builder::ShipBuild;
 
 /// A modifier value: common to all classes or per ship class.
@@ -221,8 +222,7 @@ pub fn apply_modifiers(
             .map_or(1.0, |fc| fc.max_dist_coef.max(0.0))
         * mods.multiply(ship_class, "GMMaxDist");
     let gun_rotation = main
-        .and_then(|g| g.guns.first())
-        .map_or(0.0, |g| g.rotation)
+        .map_or(0.0, GunStats::rotation_deg_s)
         * mods.multiply(ship_class, "GMRotationSpeed");
 
     let torp_reload = torps
@@ -230,8 +230,11 @@ pub fn apply_modifiers(
         .map_or(0.0, |l| l.reload)
         * mods.multiply(ship_class, "GTShotDelay");
     let torp_rotation = torps
-        .and_then(|t| t.launchers.first())
-        .map_or(0.0, |l| l.rotation)
+        .map_or(0.0, |t| {
+            t.launchers
+                .first()
+                .map_or(0.0, |l| if l.rotation > 0.0 { 180.0 / l.rotation } else { 0.0 })
+        })
         * mods.multiply(ship_class, "GTRotationSpeed");
 
     let secondary_reload = secondaries

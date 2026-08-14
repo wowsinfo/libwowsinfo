@@ -319,6 +319,9 @@ pub(super) fn on_wiki_loaded(
                         .wiki_commander_skills
                         .extend(downloader::parse_commander_skills(&json));
                 }
+                WikiDataset::Maps => {
+                    model.wiki_maps.extend(downloader::parse_maps(&json));
+                }
             }
 
             // The encyclopedia is paginated; keep fetching until the last page.

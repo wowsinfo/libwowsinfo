@@ -61,7 +61,11 @@ pub use penetration::{
     overmatch_mm, penetration_curve, solve_for_range, BallisticShell, PenetrationPoint,
 };
 pub use projectile::{parse_projectiles, ApInfo, ProjectileInfo};
-pub use wiki_lists::{all_consumable_views, all_skill_views, LocalSkillWikiEntry};
+pub use wiki_lists::{
+    all_achievement_views, all_consumable_views, all_flag_views, all_skill_views,
+    all_upgrade_views, LocalAchievementEntry, LocalFlagEntry, LocalSkillWikiEntry,
+    LocalUpgradeEntry,
+};
 pub use ship_builder::{
     build_ship_build, module_slots, ModuleOption, ModuleSelection, ShipBuild,
 };

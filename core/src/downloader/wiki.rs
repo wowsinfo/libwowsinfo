@@ -9,7 +9,7 @@ use crate::models::{
     AntiAircraftProfile, AntiAircraftSlot, ArtilleryProfile, CollectionCard, CommanderSkill,
     Consumable, ConsumableProfile, EngineProfile, GunSlot, HullProfile, MinMax, Perk, ShellInfo,
     ShipArmour, ShipConcealment, ShipMobility, ShipProfile, ShipWeaponry, ShipWiki, TorpedoProfile,
-    WikiCollection,
+    WikiCollection, WikiMap,
 };
 
 /// Merge one paginated wiki page (`data: {<id>: entry}`) into a map keyed by
@@ -88,6 +88,12 @@ pub fn parse_collection_cards(json: &Value) -> HashMap<u64, CollectionCard> {
         }
     }
     out
+}
+
+/// Parse one page of `/wows/encyclopedia/battlearenas/`.
+#[must_use]
+pub fn parse_maps(json: &Value) -> HashMap<u64, WikiMap> {
+    parse_wiki_map(json, "arena_id")
 }
 
 /// Parse one page of `/wows/encyclopedia/consumables/`. The `profile` field is
@@ -402,4 +408,36 @@ pub fn parse_ship_wiki(json: &Value, ship_id: u64) -> Option<ShipWiki> {
             },
         },
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parses_battle_arenas() {
+        let json = json!({
+            "data": {
+                "100": {
+                    "arena_id": 100,
+                    "name": "Islands of Ice",
+                    "description": "A cold map.",
+                    "icon": "https://example.com/map.jpg"
+                },
+                "200": {
+                    "arena_id": 200,
+                    "name": "Ocean",
+                    "description": "Open water.",
+                    "icon": ""
+                }
+            }
+        });
+        let maps = parse_maps(&json);
+        assert_eq!(maps.len(), 2);
+        let map = &maps[&100];
+        assert_eq!(map.name, "Islands of Ice");
+        assert_eq!(map.description, "A cold map.");
+        assert_eq!(map.icon, "https://example.com/map.jpg");
+    }
 }

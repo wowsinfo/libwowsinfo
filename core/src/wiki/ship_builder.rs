@@ -12,9 +12,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::components::{
-    parse_band, parse_guns, parse_hull, AirDefenseStats, AirSupportStats, DepthChargeStats,
-    EngineStats, FireControlStats, GunStats, HullStats, PingerStats, SpecialStats,
-    TorpedoStats,
+    parse_air_defense, parse_guns, parse_hull, parse_special, AirDefenseStats, AirstrikeStats,
+    AirSupportStats, DepthChargeLauncherStats, DepthChargePackStats, DepthChargeStats,
+    EngineStats, FireControlStats, GunStats, HullStats, PingerStats, SpecialStats, TorpedoStats,
 };
 use super::gamedata::ShipInfo;
 
@@ -80,6 +80,19 @@ fn first_component<'a>(
     key: &str,
 ) -> Option<&'a String> {
     components.get(key).and_then(|ids| ids.first())
+}
+
+/// Parse a `[min, max]` pair into `(min, max)` (e.g. `horizSector`).
+fn sector(json: &Value, key: &str) -> (f64, f64) {
+    json.get(key)
+        .and_then(Value::as_array)
+        .map(|arr| {
+            (
+                arr.first().and_then(Value::as_f64).unwrap_or(0.0),
+                arr.get(1).and_then(Value::as_f64).unwrap_or(0.0),
+            )
+        })
+        .unwrap_or((0.0, 0.0))
 }
 
 fn parse_module_options(ship: &ShipInfo, slot_key: &str) -> Vec<ModuleOption> {
@@ -226,34 +239,104 @@ pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuil
     let air_defense = hull_option
         .as_ref()
         .and_then(|o| first_component(&o.components, "airDefense"))
+        // Ships without a dedicated AA component carry their AA inside the
+        // secondary (ATBA) component (legacy `far` band + `bubbles` block).
+        .or_else(|| {
+            hull_option
+                .as_ref()
+                .and_then(|o| first_component(&o.components, "atba"))
+        })
         .and_then(|id| component(ship, id))
-        .map(|json| AirDefenseStats {
-            near: parse_band(json, "near"),
-            medium: parse_band(json, "medium"),
-            far: parse_band(json, "far"),
-        });
+        .map(parse_air_defense);
 
     let depth_charges = hull_option
         .as_ref()
         .and_then(|o| first_component(&o.components, "depthCharges"))
         .and_then(|id| component(ship, id))
-        .map(|json| DepthChargeStats {
-            reload: as_f64(json, "reload"),
-            ammo: as_str(json, "ammo"),
-            bombs: as_i64(json, "bombs"),
-            groups: as_i64(json, "groups"),
+        .map(|json| {
+            let dc = json.get("depthCharge").filter(|v| v.is_object());
+            let packs = dc.and_then(|d| d.get("packs")).filter(|v| v.is_object());
+            let empty = Value::Null;
+            let packs_json = packs.unwrap_or(&empty);
+            let launchers = dc
+                .and_then(|d| d.get("launchers"))
+                .and_then(Value::as_array)
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|l| {
+                            let horiz = sector(l, "horizSector");
+                            let vert = sector(l, "vertSector");
+                            let rot = sector(l, "rotationSpeed");
+                            Some(DepthChargeLauncherStats {
+                                name: as_str(l, "name"),
+                                num_bombs: as_i64(l, "numBombs"),
+                                shoot_angle: as_f64(l, "shootAngle"),
+                                shoot_dist: as_f64(l, "shootDist"),
+                                start_fall_speed: as_f64(l, "startFallSpeed"),
+                                horiz_sector_min: horiz.0,
+                                horiz_sector_max: horiz.1,
+                                vert_sector_min: vert.0,
+                                vert_sector_max: vert.1,
+                                fall_roll_acceleration: as_f64(l, "fallRollAcceleration"),
+                                roll_speed: as_f64(l, "rollSpeed"),
+                                rotation_speed_x: rot.0,
+                                rotation_speed_y: rot.1,
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            DepthChargeStats {
+                reload: as_f64(json, "reload"),
+                ammo: as_str(json, "ammo"),
+                bombs: as_i64(json, "bombs"),
+                groups: as_i64(json, "groups"),
+                packs: DepthChargePackStats {
+                    num_shots: as_i64(packs_json, "numShots"),
+                    shots_in_pack: as_i64(packs_json, "shotsInPack"),
+                    max_packs: as_i64(packs_json, "maxPacks"),
+                    shot_delay: as_f64(packs_json, "shotDelay"),
+                    guns_sequence_type: as_i64(packs_json, "gunsSequenceType"),
+                    center_zone_width_part: as_f64(packs_json, "centerZoneWidthPart"),
+                    use_shot_nodes_for_sequence: packs_json
+                        .get("useShotNodesForSequence")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                },
+                launchers,
+            }
         });
 
     let air_support = hull_option
         .as_ref()
         .and_then(|o| first_component(&o.components, "airSupport"))
         .and_then(|id| component(ship, id))
-        .map(|json| AirSupportStats {
-            name: as_str(json, "name"),
-            charges_num: as_i64(json, "chargesNum"),
-            plane: as_str(json, "plane"),
-            reload: as_f64(json, "reload"),
-            range: as_f64(json, "range"),
+        .map(|json| {
+            let strike = json.get("airstrike").filter(|v| v.is_object());
+            let empty = Value::Null;
+            let strike_json = strike.unwrap_or(&empty);
+            AirSupportStats {
+                name: as_str(json, "name"),
+                charges_num: as_i64(json, "chargesNum"),
+                plane: as_str(json, "plane"),
+                reload: as_f64(json, "reload"),
+                range: as_f64(json, "range"),
+                airstrike: AirstrikeStats {
+                    auto_usage: strike_json
+                        .get("autoUsage")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                    charges_num: as_i64(strike_json, "chargesNum"),
+                    climb_angle: as_f64(strike_json, "climbAngle"),
+                    fly_away_time: as_f64(strike_json, "flyAwayTime"),
+                    max_dist: as_f64(strike_json, "maxDist"),
+                    max_plane_flight_dist: as_f64(strike_json, "maxPlaneFlightDist"),
+                    min_dist: as_f64(strike_json, "minDist"),
+                    reload_time: as_f64(strike_json, "reloadTime"),
+                    time_between_shots: as_f64(strike_json, "timeBetweenShots"),
+                    time_from_heaven: as_f64(strike_json, "timeFromHeaven"),
+                },
+            }
         });
 
     let pinger = parse_module_options(ship, "_Sonar")
@@ -277,17 +360,7 @@ pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuil
         .as_ref()
         .and_then(|o| first_component(&o.components, "specials"))
         .and_then(|id| component(ship, id))
-        .and_then(|json| json.get("rageMode").filter(|v| !v.is_null()))
-        .map(|r| SpecialStats {
-            boost_duration: as_f64(r, "boostDuration"),
-            decrement_count: as_i64(r, "decrementCount"),
-            decrement_delay: as_f64(r, "decrementDelay"),
-            decrement_period: as_f64(r, "decrementPeriod"),
-            guns_for_salvo: as_i64(r, "gunsForSalvo"),
-            radius: as_f64(r, "radius"),
-            rage_mode_name: as_str(r, "rageModeName"),
-            required_hits: as_i64(r, "requiredHits"),
-        });
+        .and_then(parse_special);
 
     let secondaries = secondary_options
         .first()

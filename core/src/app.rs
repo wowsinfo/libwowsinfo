@@ -218,6 +218,8 @@ pub struct ViewModel {
     #[serde(default)]
     pub wiki_commander_skills: HashMap<u64, models::CommanderSkill>,
     #[serde(default)]
+    pub wiki_maps: HashMap<u64, models::WikiMap>,
+    #[serde(default)]
     pub selected_ship_wiki: Option<models::ShipWiki>,
     #[serde(default)]
     pub local_ship: Option<wiki::LocalShipWiki>,
@@ -227,6 +229,12 @@ pub struct ViewModel {
     pub local_consumables: Vec<wiki::ConsumableView>,
     #[serde(default)]
     pub local_skills_wiki: Vec<wiki::LocalSkillWikiEntry>,
+    #[serde(default)]
+    pub local_achievements: Vec<wiki::LocalAchievementEntry>,
+    #[serde(default)]
+    pub local_upgrades_wiki: Vec<wiki::LocalUpgradeEntry>,
+    #[serde(default)]
+    pub local_flags_wiki: Vec<wiki::LocalFlagEntry>,
     /// True once the bundled game data has been parsed successfully.
     #[serde(default)]
     pub local_data_ready: bool,
@@ -256,6 +264,7 @@ pub enum WikiDataset {
     CollectionCards,
     Consumables,
     CommanderSkills,
+    Maps,
 }
 
 /// One search hit shown in the UI.
@@ -295,6 +304,7 @@ pub struct Model {
     wiki_collection_cards: HashMap<u64, models::CollectionCard>,
     wiki_consumables: HashMap<u64, models::Consumable>,
     wiki_commander_skills: HashMap<u64, models::CommanderSkill>,
+    wiki_maps: HashMap<u64, models::WikiMap>,
     downloading_wiki: HashSet<WikiDataset>,
     selected_ship_wiki: Option<models::ShipWiki>,
     pending_ship_wiki_id: Option<u64>,
@@ -311,6 +321,9 @@ pub struct Model {
     local_spotted: bool,
     local_consumables: Vec<wiki::ConsumableView>,
     local_skills_wiki: Vec<wiki::LocalSkillWikiEntry>,
+    local_achievements: Vec<wiki::LocalAchievementEntry>,
+    local_upgrades_wiki: Vec<wiki::LocalUpgradeEntry>,
+    local_flags_wiki: Vec<wiki::LocalFlagEntry>,
     /// Raw `lang.json` string so the language can be re-parsed on change.
     raw_lang_json: Option<String>,
     /// True once the user picked a language this session; the init restore
@@ -400,11 +413,15 @@ impl AppTrait for App {
             wiki_collection_cards: model.wiki_collection_cards.clone(),
             wiki_consumables: model.wiki_consumables.clone(),
             wiki_commander_skills: model.wiki_commander_skills.clone(),
+            wiki_maps: model.wiki_maps.clone(),
             selected_ship_wiki: model.selected_ship_wiki.clone(),
             local_ship: model.local_ship.clone(),
             local_compare: model.local_compare.clone(),
             local_consumables: model.local_consumables.clone(),
             local_skills_wiki: model.local_skills_wiki.clone(),
+            local_flags_wiki: model.local_flags_wiki.clone(),
+            local_achievements: model.local_achievements.clone(),
+            local_upgrades_wiki: model.local_upgrades_wiki.clone(),
             local_data_ready: model.local_data.is_some(),
         }
     }

@@ -31,6 +31,8 @@ class WikiActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         core.update(Event.LoadLocalWarships)
                         core.update(Event.LoadWiki(WikiDataset.COLLECTIONS))
+                        core.update(Event.LoadWiki(WikiDataset.COLLECTIONCARDS))
+                        core.update(Event.LoadWiki(WikiDataset.MAPS))
                     }
                     WikiScreen(
                         viewModel = viewModel,

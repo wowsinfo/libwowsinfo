@@ -14,6 +14,7 @@ pub(super) fn wiki_url(
         WikiDataset::CollectionCards => api::collection_cards(server, key, page, language),
         WikiDataset::Consumables => api::consumables(server, key, page, language),
         WikiDataset::CommanderSkills => api::commander_skills(server, key, page, language),
+        WikiDataset::Maps => api::battle_arenas(server, key, page, language),
     }
 }
 
@@ -126,6 +127,7 @@ pub(super) fn load_wiki(model: &mut Model, dataset: WikiDataset) -> Command<Effe
         WikiDataset::CollectionCards => !model.wiki_collection_cards.is_empty(),
         WikiDataset::Consumables => !model.wiki_consumables.is_empty(),
         WikiDataset::CommanderSkills => !model.wiki_commander_skills.is_empty(),
+        WikiDataset::Maps => !model.wiki_maps.is_empty(),
     };
     if loaded || model.downloading_wiki.contains(&dataset) {
         return render::render();
@@ -218,6 +220,9 @@ fn refresh_local_lang(model: &mut Model) {
     if let Some(data) = &model.local_data {
         model.local_consumables = wiki::all_consumable_views(data, &model.local_lang);
         model.local_skills_wiki = wiki::all_skill_views(data, &model.local_lang);
+        model.local_achievements = wiki::all_achievement_views(data, &model.local_lang);
+        model.local_upgrades_wiki = wiki::all_upgrade_views(data, &model.local_lang);
+        model.local_flags_wiki = wiki::all_flag_views(data, &model.local_lang);
     }
     fill_local_warships(model);
     rebuild_local_ship(model);
@@ -234,6 +239,7 @@ fn fill_local_warships(model: &mut Model) {
                     *id,
                     models::EncyclopediaShip {
                         ship_id: *id,
+                        index: ship.index.clone(),
                         name: model.local_lang.get(&ship.name),
                         nation: ship.region.clone(),
                         r#type: ship.r#type.clone(),

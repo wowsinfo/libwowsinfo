@@ -84,6 +84,7 @@ pub struct AchievementInfo {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ModernizationInfo {
     pub key: String,
+    pub icon: String,
     pub name: String,
     pub description: String,
     pub slot: i64,
@@ -362,6 +363,7 @@ pub fn parse_game_data(json: &Value) -> GameData {
                         key.clone(),
                         ModernizationInfo {
                             key: key.clone(),
+                            icon: str_field(value, "icon"),
                             name: str_field(value, "name"),
                             description: str_field(value, "description"),
                             slot: i64_field(value, "slot"),

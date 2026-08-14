@@ -191,6 +191,15 @@ pub fn commander_skills(server: Server, api_key: &str, page_no: u64, language: &
     )
 }
 
+/// Wiki battle arenas / maps: `/wows/encyclopedia/battlearenas/`.
+#[must_use]
+pub fn battle_arenas(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
+    format!(
+        "https://api.worldofwarships.{}/wows/encyclopedia/battlearenas/?application_id={api_key}&fields=name%2Cicon%2Cdescription&page_no={page_no}&language={language}",
+        server.domain()
+    )
+}
+
 /// Remote personal-rating table (mirrored on GitHub).
 pub const PERSONAL_RATING: &str =
     "https://raw.githubusercontent.com/HenryQuan/WoWs-Info-Origin/API/json/personal_rating.json";

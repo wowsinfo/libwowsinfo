@@ -1,6 +1,8 @@
 package com.wowsinfo.libwowsinfo.ui.wiki
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,9 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -24,6 +31,7 @@ import com.wowsinfo.libwowsinfo.PenCurveView
 import com.wowsinfo.libwowsinfo.PenetrationPoint
 import com.wowsinfo.libwowsinfo.ui.chartColor
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private fun fmt(value: Double): String = String.format(Locale.US, "%.1f", value)
 
@@ -41,22 +49,82 @@ fun WikiPenetrationDialog(
         onDismiss()
         return
     }
+    val maxRange = curve.points.maxOfOrNull { it.rangeM } ?: 1.0
+    var sliderRangeM by remember { mutableStateOf(maxRange) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(curve.shellName) },
         text = {
-            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+            ) {
                 PenetrationChart(curve.points)
                 Row(modifier = Modifier.fillMaxWidth()) {
                     LegendItem("Raw", chartColor(0), Modifier.weight(1f))
                     LegendItem("Belt", chartColor(1), Modifier.weight(1f))
                     LegendItem("Deck", chartColor(2), Modifier.weight(1f))
                 }
+                LineChart(
+                    points = curve.points,
+                    series = listOf(Triple("Flight time", chartColor(3), { it.timeS })),
+                    unit = "s",
+                    height = 160,
+                )
+                LineChart(
+                    points = curve.points,
+                    series = listOf(Triple("Impact angle", chartColor(4), { it.impactAngleDeg })),
+                    unit = "°",
+                    height = 160,
+                )
+                val sample = sampleAt(curve.points, sliderRangeM)
+                if (sample != null) {
+                    Slider(
+                        value = sliderRangeM.toFloat(),
+                        onValueChange = { sliderRangeM = it.toDouble() },
+                        valueRange = 0f..maxRange.toFloat(),
+                    )
+                    Text(
+                        text = buildString {
+                            append("Range ${fmt(sliderRangeM / 1000)} km · ")
+                            append("Pen ${sample.rawPenMm.roundToInt()} / ")
+                            append("${sample.beltPenMm.roundToInt()} / ")
+                            append("${sample.deckPenMm.roundToInt()} mm · ")
+                            append("Flight ${fmt(sample.timeS)} s · ")
+                            append("Angle ${fmt(sample.impactAngleDeg)}°")
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Close") }
         },
+    )
+}
+
+private fun sampleAt(points: List<PenetrationPoint>, rangeM: Double): PenetrationPoint? {
+    if (points.isEmpty()) return null
+    if (rangeM <= points.first().rangeM) return points.first()
+    val last = points.last()
+    if (rangeM >= last.rangeM) return last
+    val index = points.indexOfFirst { it.rangeM >= rangeM }
+    if (index <= 0) return points.first()
+    val hi = points[index]
+    val lo = points[index - 1]
+    val span = (hi.rangeM - lo.rangeM).coerceAtLeast(1e-9)
+    val t = ((rangeM - lo.rangeM) / span).toFloat()
+    fun lerp(a: Double, b: Double) = a + (b - a) * t
+    return PenetrationPoint(
+        rangeM = rangeM,
+        velocity = lerp(lo.velocity, hi.velocity),
+        timeS = lerp(lo.timeS, hi.timeS),
+        rawPenMm = lerp(lo.rawPenMm, hi.rawPenMm),
+        beltPenMm = lerp(lo.beltPenMm, hi.beltPenMm),
+        deckPenMm = lerp(lo.deckPenMm, hi.deckPenMm),
+        impactAngleDeg = lerp(lo.impactAngleDeg, hi.impactAngleDeg),
     )
 }
 
@@ -72,15 +140,34 @@ private fun LegendItem(label: String, color: androidx.compose.ui.graphics.Color,
 
 @Composable
 private fun PenetrationChart(points: List<PenetrationPoint>) {
+    LineChart(
+        points = points,
+        series = listOf(
+            Triple("Raw", chartColor(0), { it.rawPenMm }),
+            Triple("Belt", chartColor(1), { it.beltPenMm }),
+            Triple("Deck", chartColor(2), { it.deckPenMm }),
+        ),
+        unit = "mm",
+        height = 260,
+    )
+}
+
+@Composable
+private fun LineChart(
+    points: List<PenetrationPoint>,
+    series: List<Triple<String, androidx.compose.ui.graphics.Color, (PenetrationPoint) -> Double>>,
+    unit: String,
+    height: Int,
+) {
     if (points.size < 2) {
         Text("Not enough data", style = MaterialTheme.typography.bodySmall)
         return
     }
     val maxRange = points.maxOf { it.rangeM }.coerceAtLeast(1.0)
-    val maxPen = points.maxOf { it.rawPenMm.coerceAtLeast(it.beltPenMm).coerceAtLeast(it.deckPenMm) }
-        .coerceAtLeast(1.0)
+    val maxY = series.flatMap { triple -> points.map(triple.third) }.maxOrNull()
+        ?.coerceAtLeast(1.0) ?: 1.0
 
-    Canvas(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+    Canvas(modifier = Modifier.fillMaxWidth().height(height.dp)) {
         val left = 8f
         val top = 12f
         val right = size.width - 8f
@@ -89,9 +176,8 @@ private fun PenetrationChart(points: List<PenetrationPoint>) {
         val chartHeight = bottom - top
 
         fun x(range: Double) = left + (range / maxRange * chartWidth).toFloat()
-        fun y(pen: Double) = bottom - (pen / maxPen * chartHeight).toFloat()
+        fun y(value: Double) = bottom - (value / maxY * chartHeight).toFloat()
 
-        // Grid lines at 25% steps.
         for (i in 0..4) {
             val gy = top + chartHeight * i / 4
             drawLine(
@@ -102,7 +188,7 @@ private fun PenetrationChart(points: List<PenetrationPoint>) {
             )
         }
 
-        fun line(select: (PenetrationPoint) -> Double, color: androidx.compose.ui.graphics.Color) {
+        series.forEach { (_, color, select) ->
             val path = Path()
             points.forEachIndexed { index, point ->
                 val px = x(point.rangeM)
@@ -112,11 +198,6 @@ private fun PenetrationChart(points: List<PenetrationPoint>) {
             drawPath(path, color, style = Stroke(width = 3f, cap = StrokeCap.Round))
         }
 
-        line({ it.rawPenMm }, chartColor(0))
-        line({ it.beltPenMm }, chartColor(1))
-        line({ it.deckPenMm }, chartColor(2))
-
-        // Axis labels.
         drawContext.canvas.nativeCanvas.drawText(
             "0",
             left,
@@ -136,7 +217,7 @@ private fun PenetrationChart(points: List<PenetrationPoint>) {
             },
         )
         drawContext.canvas.nativeCanvas.drawText(
-            "${fmt(maxPen)} mm",
+            "${fmt(maxY)} $unit",
             4f,
             top + 10f,
             android.graphics.Paint().apply {

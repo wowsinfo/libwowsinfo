@@ -79,8 +79,11 @@ fun WikiShipDetailScreen(
             ship.hull?.let { hull ->
                 item { SurvivabilitySection(hull, ship.adjusted) }
             }
+            ship.armor?.let { armor ->
+                item { ArmorSection(armor) }
+            }
             if (ship.camos.isNotEmpty()) {
-                item { CamoSection(ship.camos) }
+                item { CamoSection(ship.camos, ship.camoKeys) }
             }
             if (ship.consumables.isNotEmpty()) {
                 item { ConsumablesSection(ship.consumables, ship.adjusted) }
@@ -113,8 +116,8 @@ fun WikiShipDetailScreen(
                 item(key = "aircraft_${slot.slot}") { AircraftSection(slot) }
             }
             ship.hull?.let { hull ->
-                item { MobilitySection(hull.mobility, ship.adjusted) }
-                item { ConcealmentSection(hull.visibility, ship.adjusted) }
+                item { MobilitySection(hull, ship.adjusted) }
+                item { ConcealmentSection(hull, ship.adjusted) }
                 hull.submarineBattery?.let { battery ->
                     item { SubmarineBatterySection(battery, ship.adjusted) }
                 }

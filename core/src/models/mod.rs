@@ -20,7 +20,7 @@ pub use wiki::{
     AntiAircraftProfile, AntiAircraftSlot, ArtilleryProfile, CollectionCard, CommanderSkill,
     Consumable, ConsumableProfile, EncyclopediaShip, EngineProfile, GunSlot, HullProfile, Images,
     MinMax, Perk, RawEncyclopediaShip, ShellInfo, ShipArmour, ShipConcealment, ShipMobility,
-    ShipProfile, ShipWeaponry, ShipWiki, TorpedoProfile, WikiCollection,
+    ShipProfile, ShipWeaponry, ShipWiki, TorpedoProfile, WikiCollection, WikiMap,
 };
 
 /// Standard Wargaming API envelope: `{status, meta, data, error}`.

@@ -27,11 +27,21 @@ import com.wowsinfo.libwowsinfo.UpgradeView
 import com.wowsinfo.libwowsinfo.ui.SectionTitle
 import com.wowsinfo.libwowsinfo.ui.chartColor
 import com.wowsinfo.libwowsinfo.ui.formatNumber
+import coil.compose.AsyncImage
 import java.util.Locale
 import kotlin.math.abs
 
 private fun fmt(value: Double, digits: Int = 1): String =
     String.format(Locale.US, "%,.${digits}f", value)
+
+@Composable
+private fun AssetIcon(path: String) {
+    AsyncImage(
+        model = "file:///android_asset/$path",
+        contentDescription = null,
+        modifier = Modifier.padding(end = 6.dp),
+    )
+}
 
 @Composable
 fun ConsumablesSection(consumables: List<ConsumableView>, adjusted: AdjustedStats) {
@@ -50,6 +60,7 @@ fun ConsumablesSection(consumables: List<ConsumableView>, adjusted: AdjustedStat
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                AssetIcon("consumables/${consumable.key}.png")
                 Text(
                     text = consumable.name,
                     modifier = Modifier.weight(1.3f),
@@ -88,6 +99,14 @@ fun ConsumablesSection(consumables: List<ConsumableView>, adjusted: AdjustedStat
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (consumable.alters.isNotEmpty()) {
+                Text(
+                    text = "Variants: " + consumable.alters.joinToString(" · ") { it.name },
+                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = chartColor(index + 1),
+                )
+            }
         }
     }
 }
@@ -120,6 +139,7 @@ fun SkillsSection(skills: List<SkillView>, onToggle: (String) -> Unit) {
                             .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        AssetIcon("skills/${skill.key}.png")
                         Checkbox(
                             checked = skill.selected,
                             onCheckedChange = { onToggle(skill.key) },
@@ -223,6 +243,7 @@ fun FlagsSection(flags: List<FlagView>, onToggle: (String) -> Unit) {
                         .padding(vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    AssetIcon("flags/${flag.key}.png")
                     Checkbox(
                         checked = flag.selected,
                         onCheckedChange = { onToggle(flag.key) },

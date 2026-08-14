@@ -25,7 +25,10 @@ private enum class WikiTab(val label: String) {
     Ships("Ships"),
     Consumables("Consumables"),
     Skills("Commander Skills"),
+    Upgrades("Upgrades"),
+    Achievements("Achievements"),
     Collections("Collections"),
+    Maps("Maps"),
 }
 
 /** Wiki browser: ships, consumables, commander skills and collections. */
@@ -60,9 +63,18 @@ fun WikiScreen(
         }
         when (WikiTab.entries[tabIndex]) {
             WikiTab.Ships -> WikiShipsTab(viewModel.warship, onShipClick)
-            WikiTab.Consumables -> WikiConsumablesTab(viewModel.localConsumables)
+            WikiTab.Consumables -> WikiConsumablesTab(
+                viewModel.localConsumables,
+                viewModel.localFlagsWiki,
+            )
             WikiTab.Skills -> WikiSkillsTab(viewModel.localSkillsWiki)
-            WikiTab.Collections -> WikiCollectionsTab(viewModel.wikiCollections)
+            WikiTab.Upgrades -> WikiUpgradesTab(viewModel.localUpgradesWiki)
+            WikiTab.Achievements -> WikiAchievementsTab(viewModel.localAchievements)
+            WikiTab.Collections -> WikiCollectionsTab(
+                viewModel.wikiCollections,
+                viewModel.wikiCollectionCards,
+            )
+            WikiTab.Maps -> WikiMapsTab(viewModel.wikiMaps)
         }
     }
 }

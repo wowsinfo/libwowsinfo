@@ -33,6 +33,16 @@ pub struct ConsumableView {
     pub work_s: f64,
     /// -1 means unlimited charges.
     pub charges: i64,
+    /// Ship-specific alter variants (name/description only).
+    pub alters: Vec<ConsumableAlterView>,
+}
+
+/// One alter variant of a consumable (`abilities.<id>.alter.<key>`).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Facet)]
+pub struct ConsumableAlterView {
+    pub key: String,
+    pub name: String,
+    pub description: String,
 }
 
 /// One commander skill of the ship's class.
@@ -103,6 +113,80 @@ fn fmt_percent(value: f64) -> String {
     }
 }
 
+/// One friendly line per modifier entry (label + percent), used by the
+/// special-ability panel. Falls back to a humanised key label when the game
+/// data has no localisation for it.
+#[must_use]
+pub fn modifier_lines(lang: &LangMap, mods: &ModifierSet) -> Vec<String> {
+    mods.entries
+        .iter()
+        .filter_map(|(key, value)| {
+            let resolved = match value {
+                ModifierValue::Number(v) => *v,
+                ModifierValue::PerShipType(map) => map
+                    .values()
+                    .copied()
+                    .find(|v| (v - 1.0).abs() > f64::EPSILON)
+                    .unwrap_or(1.0),
+            };
+            if (resolved - 1.0).abs() < f64::EPSILON {
+                return None;
+            }
+            let label = match lang.get_raw(&format!("IDS_PARAMS_MODIFIER_{}", key.to_uppercase()))
+            {
+                Some(translated) => translated.to_string(),
+                None => humanize_modifier_key(key),
+            };
+            Some(format!("{} {}", label, fmt_percent(resolved)))
+        })
+        .collect()
+}
+
+/// Friendly label for a game modifier key when no localisation exists.
+fn humanize_modifier_key(key: &str) -> String {
+    let label = match key {
+        "GMShotDelay" => "Main gun reload",
+        "GMMaxDist" => "Main gun range",
+        "GMRotationSpeed" => "Main gun traverse",
+        "GMIdealRadius" => "Main gun accuracy",
+        "GMAlphaFactor" => "Main gun shell damage",
+        "GMAPDamageCoeff" => "AP damage",
+        "GMPenetrationCoeffHE" => "HE penetration",
+        "GSShotDelay" => "Secondary reload",
+        "GSMaxDist" => "Secondary range",
+        "GSIdealRadius" => "Secondary accuracy",
+        "GSAlphaFactor" => "Secondary shell damage",
+        "GSAPDamageCoeff" => "Secondary AP damage",
+        "GSPenetrationCoeffHE" => "Secondary HE penetration",
+        "GTShotDelay" => "Torpedo reload",
+        "GTRotationSpeed" => "Torpedo traverse",
+        "GLShotDelay" => "Torpedo launcher reload",
+        "GLAlphaFactor" => "Torpedo damage",
+        "torpedoDamageCoeff" => "Torpedo damage",
+        "speedCoef" => "Speed",
+        "AAAuraDamage" => "AA damage",
+        "allConsumableReloadTime" => "Consumable reload",
+        "vulnerabilityBurn" => "Fire vulnerability",
+        "vulnerabilityFlood" => "Flood vulnerability",
+        "artilleryKruppMultiplier" => "Krupp",
+        "additionalMissilesRageModeOnly" => "Extra missiles (rage)",
+        _ => return humanize_camel_key(key),
+    };
+    label.to_string()
+}
+
+/// Split a camelCase key into title-cased words (`GMMaxDist` -> "GM Max Dist").
+fn humanize_camel_key(key: &str) -> String {
+    let mut out = String::new();
+    for (index, ch) in key.chars().enumerate() {
+        if index > 0 && ch.is_uppercase() {
+            out.push(' ');
+        }
+        out.push(ch);
+    }
+    out
+}
+
 /// Format a modifier set into a short summary for the UI (up to 3 entries).
 #[must_use]
 pub fn modifier_summary(lang: &LangMap, ship_class: &str, mods: &ModifierSet) -> String {
@@ -112,6 +196,36 @@ pub fn modifier_summary(lang: &LangMap, ship_class: &str, mods: &ModifierSet) ->
             let resolved = match value {
                 ModifierValue::Number(v) => *v,
                 ModifierValue::PerShipType(map) => map.get(ship_class).copied().unwrap_or(1.0),
+            };
+            if (resolved - 1.0).abs() < f64::EPSILON {
+                return None;
+            }
+            let label = lang
+                .get_raw(&format!("IDS_PARAMS_MODIFIER_{}", key.to_uppercase()))
+                .unwrap_or(key)
+                .to_string();
+            Some(format!("{} {}", label, fmt_percent(resolved)))
+        })
+        .take(3)
+        .collect::<Vec<_>>()
+        .join(" 路 ")
+}
+
+/// Summarise a modifier set for a wiki page where no ship class is selected:
+/// per-class values fall back to the first class that actually changes the
+/// stat (so the upgrade stays understandable outside a ship build).
+#[must_use]
+pub fn modifier_summary_any(lang: &LangMap, mods: &ModifierSet) -> String {
+    mods.entries
+        .iter()
+        .filter_map(|(key, value)| {
+            let resolved = match value {
+                ModifierValue::Number(v) => *v,
+                ModifierValue::PerShipType(map) => map
+                    .values()
+                    .copied()
+                    .find(|v| (v - 1.0).abs() > f64::EPSILON)
+                    .unwrap_or(1.0),
             };
             if (resolved - 1.0).abs() < f64::EPSILON {
                 return None;
@@ -164,10 +278,37 @@ pub fn consumable_views(data: &GameData, lang: &LangMap, ship: &ShipInfo) -> Vec
                     .get("numConsumables")
                     .and_then(serde_json::Value::as_i64)
                     .unwrap_or(-1),
+                alters: alter_views(&ability.alter, lang),
             });
         }
     }
     out
+}
+
+/// Resolve an ability's alter map into sorted, localised variant views.
+pub(crate) fn alter_views(
+    alter: &serde_json::Value,
+    lang: &LangMap,
+) -> Vec<ConsumableAlterView> {
+    let mut alters: Vec<ConsumableAlterView> = alter
+        .as_object()
+        .map(|map| {
+            map.iter()
+                .filter_map(|(key, value)| {
+                    let name = value.get("name").and_then(serde_json::Value::as_str)?;
+                    let description =
+                        value.get("description").and_then(serde_json::Value::as_str)?;
+                    Some(ConsumableAlterView {
+                        key: key.clone(),
+                        name: lang.get(name),
+                        description: lang.get(description),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    alters.sort_by(|a, b| a.name.cmp(&b.name));
+    alters
 }
 
 

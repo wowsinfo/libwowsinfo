@@ -84,6 +84,8 @@ pub struct PenetrationPoint {
     pub belt_pen_mm: f64,
     /// Effective penetration against a horizontal (deck) plate.
     pub deck_pen_mm: f64,
+    /// Impact angle below the horizontal in degrees.
+    pub impact_angle_deg: f64,
 }
 
 /// Air density at altitude `y` (m) using the ISA model.
@@ -172,6 +174,7 @@ fn max_range(params: &ShellParams, v0: f64) -> Option<f64> {
 fn build_impact(params: &ShellParams, distance: f64, vx: f64, vy: f64, time: f64) -> PenetrationPoint {
     let velocity = (vx * vx + vy * vy).sqrt();
     let horizontal = (vy / vx.max(1e-9)).atan().abs();
+    let impact_angle_deg = horizontal.to_degrees();
     let deck = PI / 2.0 - horizontal;
     let raw = params.p_ppc * velocity.powf(VELOCITY_POWER);
     let belt = raw * horizontal.cos();
@@ -183,6 +186,7 @@ fn build_impact(params: &ShellParams, distance: f64, vx: f64, vy: f64, time: f64
         raw_pen_mm: raw,
         belt_pen_mm: belt,
         deck_pen_mm: deck_pen,
+        impact_angle_deg,
     }
 }
 
@@ -268,6 +272,7 @@ mod tests {
         );
         assert_eq!(point.velocity, 701.0);
         assert!(point.belt_pen_mm <= point.raw_pen_mm);
+        assert!(point.impact_angle_deg < 5.0, "flat at the muzzle");
     }
 
     #[test]
@@ -277,6 +282,10 @@ mod tests {
         assert!(curve.len() >= 5, "curve len {}", curve.len());
         assert!(curve[0].raw_pen_mm > curve.last().unwrap().raw_pen_mm);
         assert!(curve.last().unwrap().velocity < curve[0].velocity);
+        assert!(
+            curve.last().unwrap().impact_angle_deg > curve[0].impact_angle_deg,
+            "steeper impact at long range"
+        );
     }
 
     #[test]

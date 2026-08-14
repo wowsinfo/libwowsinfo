@@ -443,7 +443,7 @@ pub use clan::{parse_clan_id, parse_clan_info, parse_clan_search};
 pub use rank::{parse_rank_info, parse_rank_ship_stats};
 pub use wiki::{
     parse_collection_cards, parse_collections, parse_commander_skills, parse_consumables,
-    parse_ship_wiki,
+    parse_maps, parse_ship_wiki,
 };
 
 /// `checkVersionUpdate` in `Downloader.ts`: strings simply differ.

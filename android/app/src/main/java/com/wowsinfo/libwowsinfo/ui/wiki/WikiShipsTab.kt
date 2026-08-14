@@ -42,6 +42,8 @@ fun WikiShipsTab(
     var query by rememberSaveable { mutableStateOf("") }
     var tierFilter by rememberSaveable { mutableStateOf(0L) }
     var typeFilter by rememberSaveable { mutableStateOf("") }
+    var nationFilter by rememberSaveable { mutableStateOf("") }
+    var premiumOnly by rememberSaveable { mutableStateOf(false) }
     val sorted = ships.values.sortedWith(
         compareBy({ it.tier }, { it.type }, { it.name }),
     )
@@ -96,6 +98,27 @@ fun WikiShipsTab(
                 )
             }
         }
+        val nations = sorted.map { it.nation }.distinct().sorted()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            FilterChip(
+                selected = nationFilter.isEmpty(),
+                onClick = { nationFilter = "" },
+                label = { Text("All nations") },
+            )
+            nations.forEach { nation ->
+                FilterChip(
+                    selected = nationFilter == nation,
+                    onClick = { nationFilter = if (nationFilter == nation) "" else nation },
+                    label = { Text(nation.replace('_', ' ')) },
+                )
+            }
+        }
         val filtered = if (query.isBlank()) {
             sorted
         } else {
@@ -108,7 +131,16 @@ fun WikiShipsTab(
             }
         }.filter { ship ->
             (tierFilter == 0L || ship.tier == tierFilter) &&
-                (typeFilter.isEmpty() || ship.type == typeFilter)
+                (typeFilter.isEmpty() || ship.type == typeFilter) &&
+                (nationFilter.isEmpty() || ship.nation == nationFilter) &&
+                (!premiumOnly || ship.premium)
+        }
+        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+            FilterChip(
+                selected = premiumOnly,
+                onClick = { premiumOnly = !premiumOnly },
+                label = { Text("Premium only") },
+            )
         }
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
@@ -131,7 +163,12 @@ private fun RowShip(ship: EncyclopediaShip, onClick: () -> Unit) {
             .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (ship.icon.isBlank()) {
+        val localIcon = if (ship.index.isNotBlank()) {
+            "file:///android_asset/ships/${ship.index}.png"
+        } else {
+            ""
+        }
+        if (ship.icon.isBlank() && localIcon.isBlank()) {
             Box(
                 modifier = Modifier.padding(end = 8.dp),
                 contentAlignment = Alignment.Center,
@@ -144,7 +181,7 @@ private fun RowShip(ship: EncyclopediaShip, onClick: () -> Unit) {
             }
         } else {
             AsyncImage(
-                model = ship.icon,
+                model = localIcon.ifBlank { ship.icon },
                 contentDescription = null,
                 modifier = Modifier.padding(end = 8.dp),
             )

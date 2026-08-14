@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 pub struct RawEncyclopediaShip {
     pub ship_id: u64,
     #[serde(default)]
+    pub index: String,
+    #[serde(default)]
     pub name: String,
     #[serde(default)]
     pub nation: String,
@@ -35,6 +37,8 @@ pub struct Images {
 pub struct EncyclopediaShip {
     pub ship_id: u64,
     #[serde(default)]
+    pub index: String,
+    #[serde(default)]
     pub name: String,
     #[serde(default)]
     pub nation: String,
@@ -56,6 +60,7 @@ impl From<RawEncyclopediaShip> for EncyclopediaShip {
     fn from(raw: RawEncyclopediaShip) -> Self {
         Self {
             ship_id: raw.ship_id,
+            index: raw.index,
             name: raw.name,
             nation: raw.nation,
             r#type: raw.r#type,
@@ -94,6 +99,19 @@ pub struct CollectionCard {
     pub description: String,
     #[serde(default)]
     pub image: String,
+}
+
+/// Wiki battle arena / map (`/wows/encyclopedia/battlearenas/`).
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
+pub struct WikiMap {
+    #[serde(default)]
+    pub arena_id: u64,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub icon: String,
 }
 
 /// Wiki consumable (`/wows/encyclopedia/consumables/`).
