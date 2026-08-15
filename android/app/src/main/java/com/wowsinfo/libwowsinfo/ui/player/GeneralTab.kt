@@ -75,7 +75,7 @@ fun GeneralTab(player: PlayerView) {
         }
         item { ModeSelector(mode) { mode = it } }
         item { ModeStatsGrid(stats) }
-        item { BestShipsSection(player.ships) }
+        item { BestShipsSection(player.ships, mode) }
     }
 }
 
@@ -160,6 +160,20 @@ private fun PlayerHeader(player: PlayerView) {
                 modifier = Modifier.weight(1f),
             )
         }
+        val nowSecs = System.currentTimeMillis() / 1000
+        val lastBattle = player.lastBattleTime ?: 0L
+        val online = lastBattle > 0 &&
+            nowSecs - lastBattle < 3600 &&
+            (player.logoutAt ?: 0L) < lastBattle
+        val active = (player.recent?.totalBattles ?: 0) > 0
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround,
+        ) {
+            Stat("Online", if (online) "✓" else "✗", modifier = Modifier.weight(1f))
+            Stat("Active player", if (active) "✓" else "✗", modifier = Modifier.weight(1f))
+            Stat("Rating", formatRating(player.rating), modifier = Modifier.weight(1f))
+        }
         Box(
             modifier = Modifier.fillMaxWidth().background(ratingColor).padding(vertical = 10.dp),
             contentAlignment = Alignment.Center,
@@ -209,33 +223,45 @@ fun ModeSelector(selected: StatMode, onSelect: (StatMode) -> Unit) {
 private data class BestEntry(val label: String, val ship: ShipStatLine, val value: String)
 
 @Composable
-private fun BestShipsSection(ships: List<ShipStatLine>) {
-    val best = remember(ships) {
+private fun BestShipsSection(ships: List<ShipStatLine>, mode: StatMode) {
+    val best = remember(ships, mode) {
+        val avgDmg = { ship: ShipStatLine ->
+            shipModeStats(ship, mode)?.let { if (it.battles > 0) it.damageDealt.toDouble() / it.battles else 0.0 } ?: 0.0
+        }
+        val avgWinrate = { ship: ShipStatLine ->
+            shipModeStats(ship, mode)?.let {
+                if (it.battles > 0) it.wins.toDouble() / it.battles * 100.0 else 0.0
+            } ?: 0.0
+        }
+        val avgFrags = { ship: ShipStatLine ->
+            shipModeStats(ship, mode)?.let { if (it.battles > 0) it.frags.toDouble() / it.battles else 0.0 } ?: 0.0
+        }
+        val played = { ship: ShipStatLine -> (shipModeStats(ship, mode)?.battles ?: 0) > 0 }
         listOfNotNull(
-            ships.maxByOrNull { it.avgDmg }
-                ?.let { BestEntry("Damage", it, formatNumber(it.avgDmg)) },
-            ships.maxByOrNull { it.avgWinrate }
-                ?.let { BestEntry("Winrate", it, formatPercent(it.avgWinrate)) },
-            ships.maxByOrNull { it.avgFrags }
-                ?.let { BestEntry("Frags", it, formatNumber(it.avgFrags)) },
+            ships.maxByOrNull(avgDmg)?.takeIf(played)
+                ?.let { BestEntry("Damage", it, formatNumber(avgDmg(it))) },
+            ships.maxByOrNull(avgWinrate)?.takeIf(played)
+                ?.let { BestEntry("Winrate", it, formatPercent(avgWinrate(it))) },
+            ships.maxByOrNull(avgFrags)?.takeIf(played)
+                ?.let { BestEntry("Frags", it, formatDecimal(avgFrags(it))) },
             ships.maxByOrNull { it.rating }
                 ?.let { BestEntry("Rating", it, formatRating(it.rating)) },
-            ships.maxByOrNull { it.statistics.pvp?.torpedoes?.maxFragsBattle ?: 0L }
-                ?.takeIf { (it.statistics.pvp?.torpedoes?.maxFragsBattle ?: 0L) > 0 }
+            ships.maxByOrNull { shipModeStats(it, mode)?.torpedoes?.maxFragsBattle ?: 0L }
+                ?.takeIf { (shipModeStats(it, mode)?.torpedoes?.maxFragsBattle ?: 0L) > 0 }
                 ?.let {
                     BestEntry(
                         "Torp",
                         it,
-                        "${formatNumber(it.statistics.pvp?.torpedoes?.maxFragsBattle ?: 0L)} frags",
+                        "${formatNumber(shipModeStats(it, mode)?.torpedoes?.maxFragsBattle ?: 0L)} frags",
                     )
                 },
-            ships.maxByOrNull { it.statistics.pvp?.ramming?.maxFragsBattle ?: 0L }
-                ?.takeIf { (it.statistics.pvp?.ramming?.maxFragsBattle ?: 0L) > 0 }
+            ships.maxByOrNull { shipModeStats(it, mode)?.ramming?.maxFragsBattle ?: 0L }
+                ?.takeIf { (shipModeStats(it, mode)?.ramming?.maxFragsBattle ?: 0L) > 0 }
                 ?.let {
                     BestEntry(
                         "Ramming",
                         it,
-                        "${formatNumber(it.statistics.pvp?.ramming?.maxFragsBattle ?: 0L)} frags",
+                        "${formatNumber(shipModeStats(it, mode)?.ramming?.maxFragsBattle ?: 0L)} frags",
                     )
                 },
         )

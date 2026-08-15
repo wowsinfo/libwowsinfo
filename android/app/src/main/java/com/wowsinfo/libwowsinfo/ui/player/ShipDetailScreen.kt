@@ -34,13 +34,13 @@ import com.wowsinfo.libwowsinfo.ShipStatLine
 import com.wowsinfo.libwowsinfo.PvpStats
 import com.wowsinfo.libwowsinfo.ui.SectionTitle
 import com.wowsinfo.libwowsinfo.ui.Stat
-import com.wowsinfo.libwowsinfo.ui.charts.DonutChartSection
 import com.wowsinfo.libwowsinfo.ui.charts.RadarChartSection
-import com.wowsinfo.libwowsinfo.ui.charts.modeDistribution
 import com.wowsinfo.libwowsinfo.ui.charts.shipRadar
 import com.wowsinfo.libwowsinfo.ui.formatNumber
+import com.wowsinfo.libwowsinfo.ui.formatDecimal
 import com.wowsinfo.libwowsinfo.ui.formatPercent
 import com.wowsinfo.libwowsinfo.ui.parseRatingColor
+import java.util.Locale
 
 /**
  * Single-ship detail mirroring the Flutter `PlayerShipDetailPage`: rating
@@ -50,12 +50,11 @@ import com.wowsinfo.libwowsinfo.ui.parseRatingColor
 fun ShipDetailScreen(ship: ShipStatLine, onBack: () -> Unit) {
     val ratingColor = remember(ship.ratingColour) { parseRatingColor(ship.ratingColour) }
     val availableModes = remember(ship) {
-        StatMode.entries.filter { modeStats(ship, it)?.battles?.let { battles -> battles > 0 } == true }
+        StatMode.entries.filter { shipModeStats(ship, it)?.battles?.let { battles -> battles > 0 } == true }
     }
     var mode by remember { mutableStateOf(availableModes.firstOrNull() ?: StatMode.PvP) }
-    val stats = modeStats(ship, mode)
+    val stats = shipModeStats(ship, mode)
     val radar = remember(ship) { shipRadar(ship) }
-    val shipModes = remember(ship) { modeDistribution(ship.statistics) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -82,24 +81,12 @@ fun ShipDetailScreen(ship: ShipStatLine, onBack: () -> Unit) {
             radar?.let { values ->
                 item { RadarChartSection(values) }
             }
-            if (shipModes.isNotEmpty()) {
-                item { DonutChartSection(shipModes) }
-            }
             if (availableModes.size > 1) {
                 item { ModeSelector(mode) { mode = it } }
             }
             item { ModeStatsGrid(stats) }
         }
     }
-}
-
-private fun modeStats(ship: ShipStatLine, mode: StatMode): PvpStats? = when (mode) {
-    StatMode.PvP -> ship.statistics.pvp
-    StatMode.Solo -> ship.statistics.solo
-    StatMode.Div2 -> ship.statistics.div2
-    StatMode.Div3 -> ship.statistics.div3
-    StatMode.PvE -> ship.statistics.pve
-    StatMode.Rank -> ship.statistics.rankSolo
 }
 
 @Composable
@@ -116,8 +103,15 @@ private fun ShipBanner(ship: ShipStatLine, ratingColor: Color) {
                 fontSize = 16.sp,
             )
         }
+        val iconModel = if (ship.icon.isNotBlank()) {
+            ship.icon
+        } else if (ship.index.isNotBlank()) {
+            "file:///android_asset/ships/${ship.index}.png"
+        } else {
+            ""
+        }
         AsyncImage(
-            model = ship.icon,
+            model = iconModel.ifBlank { null },
             contentDescription = null,
             modifier = Modifier.fillMaxWidth().aspectRatio(1.7f),
         )
@@ -147,7 +141,7 @@ private fun ShipSummary(ship: ShipStatLine) {
         Stat("Battles", formatNumber(ship.battles), modifier = Modifier.weight(1f))
         Stat("DMG", formatNumber(ship.avgDmg), modifier = Modifier.weight(1f))
         Stat("WR", formatPercent(ship.avgWinrate), modifier = Modifier.weight(1f))
-        Stat("Frags", formatNumber(ship.avgFrags), modifier = Modifier.weight(1f))
+        Stat("Frags", formatDecimal(ship.avgFrags), modifier = Modifier.weight(1f))
     }
 }
 
@@ -160,14 +154,27 @@ private fun ShipAverage(ship: ShipStatLine) {
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         SectionTitle("Average")
-        AverageRow("DMG", formatNumber(ship.avgDmg), formatNumber(ship.expectedDmg))
-        AverageRow("WR", formatPercent(ship.avgWinrate), formatPercent(ship.expectedWinrate))
-        AverageRow("Frags", formatNumber(ship.avgFrags), formatNumber(ship.expectedFrags))
+        AverageRow("DMG", formatNumber(ship.avgDmg), formatNumber(ship.expectedDmg),
+            ship.avgDmg - ship.expectedDmg, 0)
+        AverageRow("WR", formatPercent(ship.avgWinrate), formatPercent(ship.expectedWinrate),
+            ship.avgWinrate - ship.expectedWinrate, 2)
+        AverageRow("Frags", formatDecimal(ship.avgFrags), formatDecimal(ship.expectedFrags),
+            ship.avgFrags - ship.expectedFrags, 2)
     }
 }
 
 @Composable
-private fun AverageRow(label: String, player: String, expected: String) {
+private fun AverageRow(label: String, player: String, expected: String, diff: Double, digits: Int) {
+    val diffColor = when {
+        diff > 0.01 -> Color(0xFF4CAF50)
+        diff < -0.01 -> Color(0xFFE53935)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val diffText = when {
+        diff > 0.01 -> "+${String.format(Locale.US, "%,.${digits}f", diff)}"
+        diff < -0.01 -> String.format(Locale.US, "%,.${digits}f", diff)
+        else -> "±0"
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -187,6 +194,12 @@ private fun AverageRow(label: String, player: String, expected: String) {
             "avg $expected",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            diffText,
+            style = MaterialTheme.typography.bodySmall,
+            color = diffColor,
+            modifier = Modifier.padding(start = 8.dp),
         )
     }
 }

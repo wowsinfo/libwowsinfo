@@ -46,6 +46,7 @@ pub fn assemble_player(
                 name: wiki
                     .map(|w| w.name.clone())
                     .unwrap_or_else(|| s.ship_id.to_string()),
+                index: wiki.map(|w| w.index.clone()).unwrap_or_default(),
                 tier: wiki.map(|w| w.tier).unwrap_or(0),
                 r#type: wiki.map(|w| w.r#type.clone()).unwrap_or_default(),
                 nation: wiki.map(|w| w.nation.clone()).unwrap_or_default(),
@@ -81,6 +82,7 @@ pub fn assemble_player(
                     .get(&s.ship_id)
                     .map(|e| e.average_frags)
                     .unwrap_or_default(),
+                last_battle_time: s.last_battle_time,
             }
         })
         .collect();
@@ -100,6 +102,7 @@ pub fn assemble_player(
         created_at: player.created_at,
         last_battle_time: player.last_battle_time,
         leveling_tier: player.leveling_tier,
+        logout_at: player.logout_at,
         clan_tag,
         recent,
         rank,

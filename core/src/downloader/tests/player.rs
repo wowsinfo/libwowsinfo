@@ -12,11 +12,13 @@ use crate::models::{PlayerInfo, ShipStats};
 fn player_info_parse_handles_keyed_data() {
     let json = serde_json::json!({
         "status": "ok",
-        "data": {"42": {"account_id": 42, "nickname": "Bob", "hidden_profile": true}}
+        "data": {"42": {"account_id": 42, "nickname": "Bob", "hidden_profile": true,
+                        "logout_at": 12345}}
     });
     let info = parse_player_info(&json, 42).expect("player");
     assert_eq!(info.nickname, "Bob");
     assert_eq!(info.hidden_profile, Some(true));
+    assert_eq!(info.logout_at, Some(12345));
 }
 
 #[test]
@@ -39,7 +41,7 @@ fn ship_stats_parse_handles_array_format() {
     let json = serde_json::json!({
             "status": "ok",
             "data": {"42": [
-                {"account_id": 42, "ship_id": 1, "battles": 10,
+                {"account_id": 42, "ship_id": 1, "battles": 10, "last_battle_time": 9001,
                  "pvp": {"battles": 10, "wins": 5, "damage_dealt": 100, "frags": 2},
                  "pvp_solo": {"battles": 4, "wins": 2, "damage_dealt": 40, "frags": 1},
                  "pve": {"battles": 2, "wins": 2, "damage_dealt": 20, "frags": 0}},
@@ -49,6 +51,7 @@ fn ship_stats_parse_handles_array_format() {
         let ships = parse_ship_stats(&json, 42);
         assert_eq!(ships.len(), 2);
         assert_eq!(ships[0].ship_id, 1);
+        assert_eq!(ships[0].last_battle_time, 9001);
         assert_eq!(ships[0].solo.as_ref().map(|p| p.battles), Some(4));
         assert_eq!(ships[0].pve.as_ref().map(|p| p.battles), Some(2));
         assert_eq!(ships[1].ship_id, 2);

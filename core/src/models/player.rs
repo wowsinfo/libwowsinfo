@@ -17,6 +17,8 @@ pub struct PlayerInfo {
     #[serde(default)]
     pub hidden_profile: Option<bool>,
     #[serde(default)]
+    pub logout_at: Option<i64>,
+    #[serde(default)]
     pub statistics: Option<PlayerStatistics>,
 }
 
@@ -64,6 +66,8 @@ pub struct ShipStats {
     pub pve: Option<PvpStats>,
     #[serde(default, rename = "rank_solo")]
     pub rank_solo: Option<PvpStats>,
+    #[serde(default)]
+    pub last_battle_time: i64,
     // Computed by `getOverallRating` (written back onto the stats).
     #[serde(default, skip)]
     pub rating: f64,
@@ -243,6 +247,8 @@ pub struct PlayerView {
     #[serde(default)]
     pub leveling_tier: Option<i64>,
     #[serde(default)]
+    pub logout_at: Option<i64>,
+    #[serde(default)]
     pub clan_tag: String,
     #[serde(default)]
     pub recent: Option<RecentOverview>,
@@ -259,6 +265,9 @@ pub struct PlayerView {
 pub struct ShipStatLine {
     pub ship_id: u64,
     pub name: String,
+    /// Local encyclopedia index (e.g. `PASB510`) for the bundled ship icon.
+    #[serde(default)]
+    pub index: String,
     pub tier: i64,
     pub r#type: String,
     pub nation: String,
@@ -280,4 +289,7 @@ pub struct ShipStatLine {
     pub expected_winrate: f64,
     #[serde(default)]
     pub expected_frags: f64,
+    /// Last battle time for this ship (sort key in the player ship list).
+    #[serde(default)]
+    pub last_battle_time: i64,
 }

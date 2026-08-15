@@ -78,9 +78,15 @@ fn select_player_assembles_stats() {
         "data": {"42": {
             "account_id": 42,
             "seasons": {"24": {
-                "rank_info": {"max_rank": 23, "start_rank": 15, "stars": 5, "rank": 23, "stage": 4},
-                "rank_solo": {"battles": 50, "wins": 30}
-            }}
+                "-1": {
+                    "rank_solo": {"battles": 50, "wins": 30},
+                    "rank_div2": null,
+                    "rank_div3": null
+                }
+            }},
+            "rank_info": {
+                "24": {"3": {"3": {"rank": 23, "rank_best": 23, "stars": 5, "stage": 4, "sprint_number": 3}}}
+            }
         }}
     });
     let rank_ships_body = serde_json::json!({
@@ -88,7 +94,7 @@ fn select_player_assembles_stats() {
         "data": {"42": {
             "3542005744": {
                 "ship_id": 3542005744u64,
-                "seasons": {"24": {"rank_solo": {"battles": 10, "wins": 6}}}
+                "seasons": {"24": {"-1": {"rank_solo": {"battles": 10, "wins": 6}}}}
             }
         }}
     });
@@ -166,7 +172,11 @@ fn select_player_assembles_stats() {
         let rank = player.rank.as_ref().expect("rank info");
         assert!(rank.seasons.contains_key("24"));
         assert_eq!(
-            rank.seasons["24"].rank_solo.as_ref().map(|p| p.battles),
+            rank.seasons["24"]
+                .ranks
+                .get("-1")
+                .and_then(|m| m.rank_solo.as_ref())
+                .map(|p| p.battles),
             Some(50)
         );
         assert_eq!(player.rank_ships.len(), 1);

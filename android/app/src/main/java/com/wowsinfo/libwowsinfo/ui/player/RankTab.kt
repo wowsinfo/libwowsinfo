@@ -54,7 +54,11 @@ fun RankTab(player: PlayerView) {
 @Composable
 private fun SeasonCard(seasonId: String, season: RankSeason) {
     val rankInfo = season.rankInfo
-    val solo = season.rankSolo
+    // The API nests stats per rank key; `-1` aggregates all ranks, otherwise
+    // fall back to the first rank bucket that has any battles.
+    val mode = season.ranks["-1"]
+        ?: season.ranks.values.maxByOrNull { it.rankSolo?.battles ?: 0 }
+    val solo = mode?.rankSolo
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -100,8 +104,8 @@ private fun SeasonCard(seasonId: String, season: RankSeason) {
                 }
             }
             listOf(
-                "Div2" to season.rankDiv2,
-                "Div3" to season.rankDiv3,
+                "Div2" to mode?.rankDiv2,
+                "Div3" to mode?.rankDiv3,
             ).forEach { (label, stats) ->
                 if (stats != null && stats.battles > 0) {
                     Text(

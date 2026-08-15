@@ -16,11 +16,20 @@ pub struct RankPlayerInfo {
     pub seasons: HashMap<String, RankSeason>,
 }
 
-/// One ranked season's stats (`rank_solo`/`rank_div2`/`rank_div3`).
+/// One ranked season: stats per rank bucket (`ranks`, keyed by the API's
+/// rank key such as `-1`) plus the season's progress from the account-level
+/// `rank_info` block.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
 pub struct RankSeason {
     #[serde(default)]
+    pub ranks: HashMap<String, RankSeasonMode>,
+    #[serde(default)]
     pub rank_info: Option<RankInfo>,
+}
+
+/// The ranked stats earned at one rank key (`-1` aggregates all ranks).
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Facet, PartialEq)]
+pub struct RankSeasonMode {
     #[serde(default)]
     pub rank_solo: Option<PvpStats>,
     #[serde(default)]

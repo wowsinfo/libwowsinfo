@@ -17,6 +17,7 @@ fn make_ship(
     ShipStatLine {
         ship_id,
         name: name.to_string(),
+        index: String::new(),
         tier: 8,
         r#type: class.to_string(),
         nation: "pan_asia".to_string(),
@@ -48,6 +49,7 @@ fn make_ship(
         expected_dmg,
         expected_winrate: 50.0,
         expected_frags: 1.0,
+        last_battle_time: 0,
     }
 }
 

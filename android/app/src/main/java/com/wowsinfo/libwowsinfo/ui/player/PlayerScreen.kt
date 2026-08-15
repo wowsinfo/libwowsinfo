@@ -78,7 +78,7 @@ fun PlayerScreen(
                 PlayerTab.General -> GeneralTab(player)
                 PlayerTab.Achievement -> AchievementTab(player.achievements)
                 PlayerTab.Charts -> ChartsTab(player)
-                PlayerTab.Ships -> ShipsTab(player.ships, onShipClick)
+                PlayerTab.Ships -> ShipsTab(player, onShipClick)
                 PlayerTab.Rank -> RankTab(player)
             }
         }

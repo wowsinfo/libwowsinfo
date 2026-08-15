@@ -15,7 +15,7 @@ pub use player::{
     Achievement, EncyclopediaAchievement, PlayerInfo, PlayerStatistics, PlayerView, PrEntry,
     PvpStats, RecentDay, RecentOverview, ShipStatLine, ShipStats, WeaponStats,
 };
-pub use rank::{RankInfo, RankPlayerInfo, RankSeason, RankShipStat};
+pub use rank::{RankInfo, RankPlayerInfo, RankSeason, RankSeasonMode, RankShipStat};
 pub use wiki::{
     AntiAircraftProfile, AntiAircraftSlot, ArtilleryProfile, CollectionCard, CommanderSkill,
     Consumable, ConsumableProfile, EncyclopediaShip, EngineProfile, GunSlot, HullProfile, Images,

@@ -68,6 +68,21 @@ fun RadarChartSection(
                     style = Stroke(width = 1f),
                 )
             }
+            // The 100% (at-average) ring, highlighted so the baseline is easy
+            // to compare against. Coincides with the outer ring when the max
+            // draw scale is exactly 100.
+            val averageRing = Path()
+            val averageFraction = 100f / drawMax
+            axis.forEachIndexed { index, angle ->
+                val p = point(angle, averageFraction)
+                if (index == 0) averageRing.moveTo(p.x, p.y) else averageRing.lineTo(p.x, p.y)
+            }
+            averageRing.close()
+            drawPath(
+                averageRing,
+                color = Color(0xFFE53935),
+                style = Stroke(width = 2f),
+            )
             // Axis lines and the 100% reference ring.
             axis.forEach { angle ->
                 drawLine(

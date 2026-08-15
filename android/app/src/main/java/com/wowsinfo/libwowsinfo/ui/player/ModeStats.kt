@@ -10,11 +10,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.wowsinfo.libwowsinfo.PvpStats
+import com.wowsinfo.libwowsinfo.ShipStatLine
 import com.wowsinfo.libwowsinfo.WeaponStats
 import com.wowsinfo.libwowsinfo.ui.Stat
 import com.wowsinfo.libwowsinfo.ui.formatDecimal
 import com.wowsinfo.libwowsinfo.ui.formatNumber
 import com.wowsinfo.libwowsinfo.ui.formatPercent
+
+/** Pick the selected mode's stats for one ship. */
+fun shipModeStats(ship: ShipStatLine, mode: StatMode): PvpStats? = when (mode) {
+    StatMode.PvP -> ship.statistics.pvp
+    StatMode.Solo -> ship.statistics.solo
+    StatMode.Div2 -> ship.statistics.div2
+    StatMode.Div3 -> ship.statistics.div3
+    StatMode.PvE -> ship.statistics.pve
+    StatMode.Rank -> ship.statistics.rankSolo
+}
 
 /** Full stat grid for one mode (PvP, Solo, Div2, Div3, PvE, Rank). */
 @Composable
