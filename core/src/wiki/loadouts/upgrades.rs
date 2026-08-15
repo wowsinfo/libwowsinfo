@@ -8,19 +8,24 @@ use crate::wiki::gamedata::{GameData, ModernizationInfo, ShipInfo};
 use crate::wiki::LangMap;
 
 fn upgrade_applies(ship: &ShipInfo, upgrade: &ModernizationInfo) -> bool {
-    if !upgrade.ships.is_empty() {
-        return upgrade.ships.contains(&ship.id);
-    }
     if upgrade.excludes.contains(&ship.id) {
         return false;
     }
-    if !upgrade.r#types.is_empty() && !upgrade.r#types.contains(&ship.r#type) {
+    // `ships` is an additional allowlist (ShipBuilder `AdditionalShips`):
+    // listed ships can equip the upgrade regardless of the generic filters.
+    // Upgrades that also carry type / nation / level filters still fall
+    // through to them for the rest of the fleet.
+    if !upgrade.ships.is_empty() && upgrade.ships.contains(&ship.id) {
+        return true;
+    }
+    // ShipBuilder semantics: an empty constraint list matches no ship.
+    if upgrade.r#types.is_empty() || !upgrade.r#types.contains(&ship.r#type) {
         return false;
     }
-    if !upgrade.nations.is_empty() && !upgrade.nations.contains(&ship.region) {
+    if upgrade.nations.is_empty() || !upgrade.nations.contains(&ship.region) {
         return false;
     }
-    upgrade.levels.is_empty() || upgrade.levels.contains(&ship.tier)
+    !upgrade.levels.is_empty() && upgrade.levels.contains(&ship.tier)
 }
 
 /// Module upgrades (modernizations) applicable to the ship.

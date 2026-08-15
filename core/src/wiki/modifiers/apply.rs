@@ -29,13 +29,16 @@ pub fn apply_modifiers(
     let secondaries = build.secondaries.as_ref();
     let hull = build.hull.as_ref();
 
+    // Low-HP reload reduction (Adrenaline Rush) affects every armament type.
+    let low_hp = low_hp_multiplier(mods, ship_class, hp_fraction);
+
     let gun_reload = main
         .and_then(|g| g.guns.first())
         .map_or(0.0, |g| g.reload)
         * mods.multiply(ship_class, "GMShotDelay")
         * mods.multiply(ship_class, "reloadFactor")
         * mods.multiply(ship_class, "activeManeuveringReloadCoeff")
-        * low_hp_multiplier(mods, ship_class, hp_fraction);
+        * low_hp;
     let gun_range = main.map_or(0.0, |g| g.range_m)
         * build
             .fire_control
@@ -49,7 +52,8 @@ pub fn apply_modifiers(
     let torp_reload = torps
         .and_then(|t| t.launchers.first())
         .map_or(0.0, |l| l.reload)
-        * mods.multiply(ship_class, "GTShotDelay");
+        * mods.multiply(ship_class, "GTShotDelay")
+        * low_hp;
     let torp_rotation = torps
         .map_or(0.0, |t| {
             t.launchers
@@ -61,7 +65,8 @@ pub fn apply_modifiers(
     let secondary_reload = secondaries
         .and_then(|g| g.guns.first())
         .map_or(0.0, |g| g.reload)
-        * mods.multiply(ship_class, "GSShotDelay");
+        * mods.multiply(ship_class, "GSShotDelay")
+        * low_hp;
     let secondary_range = secondaries.map_or(0.0, |g| g.range_m)
         * mods.multiply(ship_class, "GSMaxDist");
 

@@ -38,7 +38,7 @@ impl ModifierSet {
     pub fn merged(mut self, other: &ModifierSet) -> Self {
         for (key, value) in &other.entries {
             if let Some((_, existing)) = self.entries.iter_mut().find(|(k, _)| k == key) {
-                *existing = merge_values(existing, value, is_additive(key));
+                *existing = merge_values(existing, value, is_additive_key(key));
                 continue;
             }
             self.entries.push((key.clone(), value.clone()));
@@ -73,8 +73,28 @@ impl ModifierSet {
     }
 }
 
-fn is_additive(key: &str) -> bool {
-    key.contains("Additional") || key.contains("Extra") || key == "additionalConsumables"
+/// True for keys whose values are additive counts rather than ratios
+/// (`+1 consumable`, `+2 flak clouds`), where a value of `1.0` is a real
+/// change and `0.0` is the neutral value.
+#[must_use]
+pub fn is_additive_key(key: &str) -> bool {
+    key.contains("Additional")
+        || key.contains("Extra")
+        || key == "additionalConsumables"
+        // Absolute-value modifiers from the game params: counts, distances
+        // and replacement times are additive, not ratios.
+        || matches!(
+            key,
+            "dcNumPacksBonus"
+                | "planeHealthPerLevel"
+                | "prioritySectorStrengthBonus"
+                | "ignorePTZBonus"
+                | "uwCoeffBonus"
+                | "visionXRayTorpedoDist"
+                | "fighterAimingTime"
+                | "torpedoBomberAimingTime"
+                | "skipBomberAimingTime"
+        )
 }
 
 fn merge_values(a: &ModifierValue, b: &ModifierValue, additive: bool) -> ModifierValue {

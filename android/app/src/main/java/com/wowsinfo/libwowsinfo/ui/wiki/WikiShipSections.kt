@@ -676,7 +676,7 @@ fun ConcealmentSection(hull: HullStats, adjusted: AdjustedStats) {
 fun BurstSection(burst: BurstInfo) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
-            text = "Burst Fire",
+            text = if (burst.secondaryAmmo.isNotEmpty()) "Switchable Ammo Mode" else "Burst Fire",
             style = MaterialTheme.typography.labelLarge,
             color = chartColor(6),
             fontWeight = FontWeight.Bold,
@@ -687,6 +687,13 @@ fun BurstSection(burst: BurstInfo) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (burst.secondaryAmmo.isNotEmpty()) {
+            Text(
+                text = "Alt ammo: ${burst.secondaryAmmo.size} shell type(s), shown on the cards below",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

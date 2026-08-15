@@ -42,6 +42,14 @@ mod tests {
                 "_Hull": [{
                     "index": 0, "name": "H", "cost": {"costXP": 0, "costCR": 0},
                     "components": {"hull": ["H1"], "artillery": ["G1"], "airDefense": ["AA1"]}
+                }],
+                "_Torpedoes": [{
+                    "index": 0, "name": "T", "cost": {"costXP": 0, "costCR": 0},
+                    "components": {"torpedoes": ["T1"]}
+                }],
+                "_SecondaryWeapons": [{
+                    "index": 0, "name": "S", "cost": {"costXP": 0, "costCR": 0},
+                    "components": {"atba": ["G2"]}
                 }]
             },
             "components": {
@@ -51,6 +59,12 @@ mod tests {
                 "G1": {"range": 14699.0, "sigma": 2.0, "guns": [{
                     "reload": 15.0, "rotation": 25.7, "each": 3,
                     "ammo": ["PAPA_AP"], "vertSector": 41.0, "count": 3}]},
+                "G2": {"range": 5000.0, "sigma": 2.0, "guns": [{
+                    "reload": 5.0, "rotation": 10.0, "each": 1,
+                    "ammo": ["PAPA_AP"], "vertSector": 20.0, "count": 4}]},
+                "T1": {"singleShot": false, "launchers": [{
+                    "reload": 100.0, "rotation": 25.0, "each": 4,
+                    "ammo": ["TORP"], "vertSector": 20.0, "count": 2}]},
                 "AA1": {"near": [{"minRange": 0.1, "maxRange": 2.0, "hitChance": 0.9,
                                   "damage": 60.0, "rof": 0.29, "dps": 200.0, "guns": []}]}
             }
@@ -72,5 +86,12 @@ mod tests {
         assert!((adjusted.speed - 33.6).abs() < 1e-9);
         assert!((adjusted.concealment_sea - 10.35).abs() < 1e-9);
         assert!((adjusted.aa_dps - 200.0).abs() < 1e-9);
+
+        // Low HP reduces reload for every armament type (Adrenaline Rush).
+        let low_hp = parse_modifiers(&json!({"lastChanceReloadCoefficient": 0.2}));
+        let adjusted = apply_modifiers(&build, "Cruiser", &low_hp, 0.5);
+        assert!((adjusted.gun_reload_s - 15.0 * 0.6).abs() < 1e-9);
+        assert!((adjusted.torp_reload_s - 100.0 * 0.6).abs() < 1e-9);
+        assert!((adjusted.secondary_reload_s - 5.0 * 0.6).abs() < 1e-9);
     }
 }

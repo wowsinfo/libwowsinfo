@@ -10,6 +10,8 @@ mod tests {
         LocalBuildConfig,
     };
     use crate::wiki::gamedata::{parse_game_data, GameData};
+    use crate::wiki::loadouts::modifier_summary;
+    use crate::wiki::modifiers::parse_modifiers;
     use crate::wiki::LangMap;
 
     fn test_data() -> GameData {
@@ -22,6 +24,14 @@ mod tests {
                     "group": "normal", "costXP": 0, "costGold": 0, "costCR": 0,
                     "consumables": [[{"name": "PCY006_SmokeGenerator", "type": "C_TierOne"}]],
                     "nextShips": [],
+                    "modules": {}, "components": {}
+                },
+                "2": {
+                    "id": 2, "index": "T2", "name": "IDS_N2", "description": "",
+                    "year": "", "paperShip": false, "tier": 10, "region": "USA",
+                    "type": "Battleship", "regionID": "IDS_USA", "typeID": "IDS_BB",
+                    "group": "normal", "costXP": 0, "costGold": 0, "costCR": 0,
+                    "consumables": [], "nextShips": [],
                     "modules": {}, "components": {}
                 }
             },
@@ -52,6 +62,27 @@ mod tests {
                     "name": "IDS_U", "description": "IDS_U_DESC", "slot": 1,
                     "costCR": 500, "level": [8], "type": ["Cruiser"], "nation": ["USA"],
                     "modifiers": {"GMShotDelay": 0.88}
+                },
+                "PCM002": {
+                    "id": 9005,
+                    "name": "IDS_U2", "description": "IDS_U2_DESC", "slot": 4,
+                    "costCR": 500, "ships": [2],
+                    "modifiers": {"visibilityDistCoeff": 0.9}
+                },
+                "PCM003": {
+                    "id": 9006,
+                    "name": "IDS_U3", "description": "IDS_U3_DESC", "slot": 5,
+                    "costCR": 500, "level": [9, 10, 11], "type": ["Battleship"],
+                    "nation": ["USA"], "excludes": [1],
+                    "modifiers": {"GMMaxDist": 1.16}
+                },
+                "PCM004": {
+                    "id": 9007,
+                    "name": "IDS_U4", "description": "IDS_U4_DESC", "slot": 4,
+                    "costCR": 500, "level": [8, 9, 10, 11],
+                    "type": ["Battleship", "Cruiser"], "nation": ["USA"],
+                    "ships": [999],
+                    "modifiers": {"visibilityDistCoeff": 0.9}
                 }
             },
             "exteriors": {
@@ -93,12 +124,23 @@ mod tests {
         );
 
         let upgrades = upgrade_views(&data, &lang, ship, &HashSet::new());
-        assert_eq!(upgrades.len(), 1);
+        // PCM001 (generic) and PCM004 (generic + additional ships) apply;
+        // PCM002 is ships-only for ship 2 and PCM003 excludes ship 1.
+        assert_eq!(upgrades.len(), 2, "upgrades: {:?}", upgrades.iter().map(|u| u.key.clone()).collect::<Vec<_>>());
+        assert!(upgrades.iter().any(|u| u.key == "PCM001"));
+        assert!(upgrades.iter().any(|u| u.key == "PCM004"));
         assert_eq!(upgrades[0].slot, 1);
+
+        let battleship = &data.ships[&2];
+        let bb_upgrades = upgrade_views(&data, &lang, battleship, &HashSet::new());
+        let bb_keys = bb_upgrades.iter().map(|u| u.key.clone()).collect::<Vec<_>>();
+        assert!(bb_keys.contains(&"PCM002".to_string()), "additional-ships bypass: {bb_keys:?}");
+        assert!(bb_keys.contains(&"PCM003".to_string()), "slot-5 upgrade for tier 10: {bb_keys:?}");
+        assert!(bb_keys.contains(&"PCM004".to_string()), "concealment-style generic upgrade: {bb_keys:?}");
 
         let flags = flag_views(&data, &lang, ship, &HashSet::new());
         assert_eq!(flags.len(), 1);
-        assert_eq!(flags[0].summary, "speedCoef +5%");
+        assert_eq!(flags[0].summary, "Speed +5%");
 
         let config = LocalBuildConfig {
             skills: HashSet::from(["TriggerGmReload".to_string()]),
@@ -117,5 +159,25 @@ mod tests {
         };
         let mods = combined_modifiers(&data, ship, &unspotted);
         assert!((mods.multiply("Cruiser", "GMShotDelay") - 0.88).abs() < 1e-9);
+    }
+
+    #[test]
+    fn modifier_summary_uses_localised_per_class_labels_and_counts() {
+        let lang = LangMap::from_entries([(
+            "IDS_PARAMS_MODIFIER_GMROTATIONSPEED_BATTLESHIP".to_string(),
+            "Main battery traverse speed".to_string(),
+        )]);
+        let mods = parse_modifiers(&json!({
+            "GMRotationSpeed": {"Battleship": 0.85},
+            "additionalConsumables": 1.0,
+            "dcNumPacksBonus": 2.0
+        }));
+        let summary = modifier_summary(&lang, "Battleship", &mods);
+        assert!(
+            summary.contains("Main battery traverse speed -15%"),
+            "per-class label: {summary}"
+        );
+        assert!(summary.contains("+1"), "additive count: {summary}");
+        assert!(summary.contains("+2"), "absolute-value count: {summary}");
     }
 }

@@ -17,13 +17,18 @@ pub struct WeaponInfo {
     pub count: i64,
 }
 
-/// Burst-fire block (`guns[].burst`).
+/// Burst / switchable-mode block (`switchable`, legacy `burst`).
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Facet)]
 pub struct BurstInfo {
     pub burst_reload_time: f64,
     pub full_reload_time: f64,
     pub shot_intensity: f64,
     pub shots_count: i64,
+    /// Alternative shells loaded in the switchable mode (`secondaryAmmoList`).
+    pub secondary_ammo: Vec<String>,
+    /// Mode modifiers (e.g. `GMPenetrationCoeffHE` for Zorkiy's burst);
+    /// always plain scalar values in the bundle.
+    pub modifiers: Vec<(String, f64)>,
 }
 
 /// An artillery component (`range`, `sigma`, `guns`).
@@ -149,12 +154,37 @@ pub(crate) fn parse_guns(json: &Value) -> GunStats {
             .and_then(Value::as_array)
             .map(|arr| arr.iter().map(parse_weapon).collect())
             .unwrap_or_default(),
-        burst: json.get("burst").filter(|v| !v.is_null()).map(|burst| BurstInfo {
-            burst_reload_time: as_f64(burst, "burstReloadTime"),
-            full_reload_time: as_f64(burst, "fullReloadTime"),
-            shot_intensity: as_f64(burst, "shotIntensity"),
-            shots_count: as_i64(burst, "shotsCount"),
-        }),
+        burst: json
+            .get("switchable")
+            .or_else(|| json.get("burst"))
+            .filter(|v| !v.is_null())
+            .map(|burst| BurstInfo {
+                burst_reload_time: as_f64(burst, "burstReloadTime"),
+                full_reload_time: as_f64(burst, "fullReloadTime"),
+                shot_intensity: as_f64(burst, "shotIntensity"),
+                shots_count: as_i64(burst, "shotsCount"),
+                secondary_ammo: burst
+                    .get("secondaryAmmoList")
+                    .and_then(Value::as_array)
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(Value::as_str)
+                            .map(ToOwned::to_owned)
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                modifiers: burst
+                    .get("modifiers")
+                    .and_then(Value::as_object)
+                    .map(|map| {
+                        map.iter()
+                            .filter_map(|(key, value)| {
+                                value.as_f64().map(|number| (key.clone(), number))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            }),
         turrets: json
             .get("turrets")
             .and_then(Value::as_array)

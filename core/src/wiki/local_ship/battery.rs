@@ -100,6 +100,15 @@ pub(super) fn main_battery_view(
 ) -> MainBatteryView {
     let first = guns.guns.first().cloned().unwrap_or_default();
     let mut shells = shells_from_weapons(lang, data, &guns.guns);
+    if let Some(burst) = &guns.burst {
+        for key in &burst.secondary_ammo {
+            if let Some(projectile) = data.projectiles.get(key) {
+                if !shells.iter().any(|shell| shell.key == *key) {
+                    shells.push(ShellView::from_projectile(lang, projectile));
+                }
+            }
+        }
+    }
     if shells.is_empty() {
         shells = shells_from_weapons(lang, data, &[first.clone()]);
     }

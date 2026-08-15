@@ -15,5 +15,5 @@ mod value;
 
 pub use adjusted::AdjustedStats;
 pub use apply::apply_modifiers;
-pub use value::{parse_modifiers, ModifierSet, ModifierValue};
+pub use value::{is_additive_key, parse_modifiers, ModifierSet, ModifierValue};
 

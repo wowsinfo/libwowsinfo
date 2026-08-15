@@ -246,6 +246,98 @@ fn real_wowsinfo_json_parses_when_available() {
         assert!(!wiki.consumables.is_empty());
     }
 
+    // A tier-10 battleship exposes all six upgrade slots, including the
+    // concealment system (PCM027), per ShipBuilder's availability rules.
+    if data.ships.contains_key(&3_760_142_320) {
+        let wiki = build_local_ship_wiki(
+            &data,
+            &lang,
+            3_760_142_320,
+            ModuleSelection::default(),
+            &LocalBuildConfig::default(),
+        )
+        .expect("montana");
+        let slots: std::collections::HashSet<i64> =
+            wiki.upgrades.iter().map(|u| u.slot).collect();
+        assert!(
+            slots.len() >= 6,
+            "montana upgrade slots: {slots:?} ({} upgrades)",
+            wiki.upgrades.len()
+        );
+        assert!(
+            wiki.upgrades.iter().any(|u| u.key == "PCM027_ConcealmentMeasures_Mod_I"),
+            "concealment upgrade missing: {:?}",
+            wiki.upgrades.iter().map(|u| u.key.clone()).collect::<Vec<_>>()
+        );
+    }
+
+    // Datong (PZSD728) exposes its regular shells plus the switchable-mode
+    // alt shells: the alt HE has 30 mm penetration (vs 17 mm standard).
+    if data.ships.contains_key(&3_531_486_416) {
+        let wiki = build_local_ship_wiki(
+            &data,
+            &lang,
+            3_531_486_416,
+            ModuleSelection::default(),
+            &LocalBuildConfig::default(),
+        )
+        .expect("datong");
+        let shells = wiki
+            .main_battery
+            .as_ref()
+            .map(|b| b.shells.clone())
+            .unwrap_or_default();
+        let he = shells
+            .iter()
+            .find(|s| s.ammo_type == "HE")
+            .expect("datong HE shell");
+        let ap = shells
+            .iter()
+            .find(|s| s.ammo_type == "AP")
+            .expect("datong AP shell");
+        assert_eq!(he.pen_he, Some(17.0));
+        assert!(ap.damage > he.damage, "AP harder hitting than HE");
+        let alt_he = shells
+            .iter()
+            .find(|s| s.ammo_type == "HE" && s.pen_he == Some(30.0))
+            .expect("datong switchable HE with 30 mm pen");
+        assert!(alt_he.key.contains("_ALT"));
+        let burst = wiki
+            .main_battery
+            .as_ref()
+            .and_then(|b| b.burst.as_ref())
+            .expect("datong switchable mode");
+        assert_eq!(burst.secondary_ammo.len(), 2);
+    }
+
+    // Zorkiy (PRSD111, T11) has a burst-fire switchable mode: 3 shots per
+    // salvo, 1 s burst reload, 40 s full reload, +50% HE penetration.
+    if data.ships.contains_key(&4_178_458_064) {
+        let wiki = build_local_ship_wiki(
+            &data,
+            &lang,
+            4_178_458_064,
+            ModuleSelection::default(),
+            &LocalBuildConfig::default(),
+        )
+        .expect("zorkiy");
+        let burst = wiki
+            .main_battery
+            .as_ref()
+            .and_then(|b| b.burst.as_ref())
+            .expect("zorkiy burst mode");
+        assert_eq!(burst.shots_count, 3);
+        assert_eq!(burst.burst_reload_time, 1.0);
+        assert_eq!(burst.full_reload_time, 40.0);
+        assert_eq!(
+            burst
+                .modifiers
+                .iter()
+                .find(|(key, _)| key == "GMPenetrationCoeffHE"),
+            Some(&("GMPenetrationCoeffHE".to_string(), 1.5))
+        );
+    }
+
     // A battleship resolves with a full armor digest (zones + turrets).
     let battleship = data
         .ships

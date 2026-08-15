@@ -25,6 +25,31 @@ mod tests {
     }
 
     #[test]
+    fn switchable_mode_parses_with_alt_ammo_and_modifiers() {
+        let json = serde_json::json!({
+            "range": 12840.0, "sigma": 2.0,
+            "guns": [{"reload": 3.6, "rotation": 11.25, "each": 4,
+                      "ammo": ["HE"], "vertSector": 85.0, "count": 2}],
+            "switchable": {
+                "burstReloadTime": 1.0, "fullReloadTime": 4.45,
+                "shotIntensity": 1.0, "shotsCount": 1,
+                "secondaryAmmoList": ["HE_ALT", "AP_ALT"],
+                "modifiers": {"GMPenetrationCoeffHE": 1.5}
+            }
+        });
+        let guns = parse_guns(&json);
+        let burst = guns.burst.expect("switchable mode");
+        assert_eq!(burst.shots_count, 1);
+        assert_eq!(burst.burst_reload_time, 1.0);
+        assert_eq!(burst.full_reload_time, 4.45);
+        assert_eq!(burst.secondary_ammo, vec!["HE_ALT", "AP_ALT"]);
+        assert_eq!(
+            burst.modifiers.iter().find(|(key, _)| key == "GMPenetrationCoeffHE"),
+            Some(&("GMPenetrationCoeffHE".to_string(), 1.5))
+        );
+    }
+
+    #[test]
     fn hull_and_aa_parse() {
         let hull = serde_json::json!({
             "health": 30500.0, "protection": 4.0,
