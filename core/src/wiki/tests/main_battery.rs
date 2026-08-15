@@ -62,5 +62,20 @@ fn kawachi_main_battery_matches_shipbuilder_values() {
         assert_eq!(entry.dpm, (shell.damage as f64 * 12.0 * 2.0).round() as i64);
         assert_eq!(entry.salvo_damage, shell.damage * 12);
         assert!((entry.salvo_weight_kg - shell.weight * 12.0).abs() < 1e-6);
+        let expected_fpm = shell
+            .burn_chance
+            .map(|chance| ((chance * 12.0 * 2.0) * 100.0).round() / 100.0)
+            .unwrap_or(0.0);
+        assert!(
+            (entry.potential_fpm - expected_fpm).abs() < 1e-9,
+            "{} potential_fpm {} != {}",
+            entry.shell_key,
+            entry.potential_fpm,
+            expected_fpm
+        );
     }
+    assert!(
+        battery.per_shell_dpm.iter().any(|entry| entry.potential_fpm > 0.0),
+        "HE shell has fires per minute"
+    );
 }

@@ -18,6 +18,13 @@ pub struct AircraftDetail {
     pub r#type: String,
     pub health: f64,
     pub total_planes: i64,
+    /// Squadron HP (`adjusted_health * total_planes`), ShipBuilder `SquadronHp`.
+    pub squadron_hp: f64,
+    /// Attack-group HP (`adjusted_health * attacker`), ShipBuilder `AttackGroupHp`.
+    pub attack_group_hp: f64,
+    /// `(aimingAccuracyIncreaseRate + aimingAccuracyDecreaseRate) * 100`,
+    /// ShipBuilder `AimingRateMoving`.
+    pub aiming_rate_moving_percent: Option<f64>,
     pub speed: f64,
     pub visibility: f64,
     pub attack_count: Option<i64>,
@@ -118,12 +125,24 @@ impl AircraftDetail {
                     .collect(),
             })
             .collect();
+        let health = aircraft.health
+            * mods.multiply(ship_class, "planeHealthCoeff")
+            * mods.multiply(ship_class, health_key);
         Self {
             key: aircraft.key.clone(),
             name: lang.get(&aircraft.name),
             r#type: aircraft.r#type.clone(),
             health: aircraft.health,
             total_planes: aircraft.total_planes,
+            squadron_hp: health * aircraft.total_planes as f64,
+            attack_group_hp: health * aircraft.attacker.unwrap_or(1) as f64,
+            aiming_rate_moving_percent: match (
+                aircraft.aiming_accuracy_increase_rate,
+                aircraft.aiming_accuracy_decrease_rate,
+            ) {
+                (Some(increase), Some(decrease)) => Some((increase + decrease) * 100.0),
+                _ => None,
+            },
             speed: aircraft.speed,
             visibility: aircraft.visibility,
             attack_count: aircraft.attack_count,
@@ -173,9 +192,7 @@ impl AircraftDetail {
             restore_amount: aircraft.restore_amount,
             start_on_deck: aircraft.start_on_deck,
             plane_consumables,
-            adjusted_health: aircraft.health
-                * mods.multiply(ship_class, "planeHealthCoeff")
-                * mods.multiply(ship_class, health_key),
+            adjusted_health: health,
             adjusted_speed: aircraft.speed
                 * mods.multiply(ship_class, "planeSpeed")
                 * mods.multiply(ship_class, speed_key),

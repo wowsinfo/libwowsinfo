@@ -72,6 +72,9 @@ fun ConsumablesSection(consumables: List<ConsumableView>, adjusted: AdjustedStat
                 )
                 Text(
                     text = buildString {
+                        if (consumable.preparationS > 0) {
+                            append("prep ${fmt(consumable.preparationS)} s · ")
+                        }
                         if (consumable.workS > 0) {
                             val work = consumable.workS * adjusted.consumableWorkMult
                             append("${fmt(work)} s")

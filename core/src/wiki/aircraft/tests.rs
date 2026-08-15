@@ -44,6 +44,29 @@ mod tests {
     }
 
     #[test]
+    fn parses_flattened_v15_7_squadron_fields() {
+        let json = json!({
+            "PAAB999_Flat": {
+                "type": "Bomber", "nation": "USA",
+                "name": "IDS_PAAB999_FLAT",
+                "health": 2200.0, "totalPlanes": 9, "visibility": 10.0, "speed": 130.0,
+                "attackCount": 2, "attackerSize": 3,
+                "bombName": "PAPT910_Mk_13_mod0A_Independence",
+                "restorationTime": 60.0
+            }
+        });
+        let map = parse_aircrafts(&json);
+        let bomber = &map["PAAB999_Flat"];
+        assert_eq!(bomber.attack_count, Some(2));
+        assert_eq!(bomber.attacker, Some(3));
+        assert_eq!(bomber.restore_time, Some(60.0));
+        assert_eq!(
+            bomber.bomb_name.as_deref(),
+            Some("PAPT910_Mk_13_mod0A_Independence")
+        );
+    }
+
+    #[test]
     fn parses_full_squadron_fields() {
         let json = json!({
             "PAAB052_Grumman_TBM3": {

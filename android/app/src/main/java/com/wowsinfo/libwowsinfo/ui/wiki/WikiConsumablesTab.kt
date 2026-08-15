@@ -112,6 +112,9 @@ fun WikiConsumablesTab(consumables: List<ConsumableView>, flags: List<LocalFlagE
                     text = buildString {
                         append(consumable.type)
                         if (consumable.workS > 0) append(" · ${fmt(consumable.workS)} s")
+                        if (consumable.preparationS > 0) {
+                            append(" · prep ${fmt(consumable.preparationS)} s")
+                        }
                         if (consumable.reloadS > 0) append(" · reload ${fmt(consumable.reloadS)} s")
                         if (consumable.charges != -1L) append(" · ${consumable.charges}x")
                     },

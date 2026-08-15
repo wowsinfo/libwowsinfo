@@ -326,7 +326,13 @@ fun SecondarySection(battery: MainBatteryView, adjusted: AdjustedStats) {
                 Triple("Reload", statWithBase(battery.reloadS, adjusted.secondaryReloadS, "s"), 3),
             ),
         )
-        battery.shells.forEach { shell -> ShellCard(shell = shell, curves = emptyList()) }
+        battery.shells.forEach { shell ->
+            ShellCard(
+                shell = shell,
+                curves = emptyList(),
+                dpm = battery.perShellDpm.firstOrNull { it.shellKey == shell.key },
+            )
+        }
     }
 }
 
@@ -748,9 +754,21 @@ fun AircraftSection(slot: AircraftSlotView) {
         StatGrid(
             listOf(
                 Triple("HP", statWithBase(aircraft.health, aircraft.adjustedHealth, ""), 0),
-                Triple("Planes", aircraft.totalPlanes.toString(), 1),
-                Triple("Speed", statWithBase(aircraft.speed, aircraft.adjustedSpeed, "kn"), 2),
-                Triple("Visibility", "${fmt(aircraft.visibility)} km", 3),
+                Triple("Squadron HP", fmtInt(aircraft.squadronHp), 1),
+                Triple("Attack HP", fmtInt(aircraft.attackGroupHp), 2),
+                Triple("Planes", aircraft.totalPlanes.toString(), 3),
+            ),
+        )
+        StatGrid(
+            listOf(
+                Triple("Speed", statWithBase(aircraft.speed, aircraft.adjustedSpeed, "kn"), 4),
+                Triple("Visibility", "${fmt(aircraft.visibility)} km", 5),
+                Triple(
+                    "Aim rate",
+                    aircraft.aimingRateMovingPercent?.let { "${fmt(it, 1)}%/s" } ?: "—",
+                    0,
+                ),
+                Triple("Restore", aircraft.restoreTime?.let { "${fmt(it)} s" } ?: "—", 1),
             ),
         )
         StatGrid(
@@ -767,10 +785,9 @@ fun AircraftSection(slot: AircraftSlotView) {
         )
         StatGrid(
             listOf(
-                Triple("Restore", aircraft.restoreTime?.let { "${fmt(it)} s" } ?: "—", 2),
-                Triple("On deck", aircraft.maxNumberOnDeck?.toString() ?: "—", 3),
-                Triple("Start deck", aircraft.startOnDeck?.toString() ?: "—", 4),
-                Triple("Restore amt", aircraft.restoreAmount?.toString() ?: "—", 5),
+                Triple("On deck", aircraft.maxNumberOnDeck?.toString() ?: "—", 2),
+                Triple("Start deck", aircraft.startOnDeck?.toString() ?: "—", 3),
+                Triple("Restore amt", aircraft.restoreAmount?.toString() ?: "—", 4),
             ),
         )
         StatGrid(
@@ -1072,6 +1089,7 @@ private fun ShellCard(shell: ShellView, curves: List<PenCurveView>, dpm: ShellDp
                 dpm?.let {
                     append(" · DPM ${formatNumber(it.dpm)}")
                     append(" · Salvo ${formatNumber(it.salvoDamage)} dmg")
+                    if (it.potentialFpm > 0) append(" · FPM ${fmt(it.potentialFpm, 2)}")
                     if (it.salvoWeightKg > 0) append(" · ${fmtInt(it.salvoWeightKg)} kg")
                 }
                 shell.overmatch?.let {

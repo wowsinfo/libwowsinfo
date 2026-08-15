@@ -2,6 +2,21 @@
 
 use crate::data::Server;
 
+/// Map the app's game-data language codes to the codes accepted by the WG API.
+///
+/// The bundled `lang.json` ships `en`/`ja`/`zh_sg`/`zh_tw`, but the
+/// encyclopedia API only accepts `zh-cn`/`zh-tw` (and rejects `zh_sg` with
+/// `INVALID_LANGUAGE`). Local parsing keeps the original codes; this is the
+/// boundary where they are translated for outgoing URLs.
+#[must_use]
+pub fn api_language(language: &str) -> &str {
+    match language {
+        "zh_sg" => "zh-cn",
+        "zh_tw" => "zh-tw",
+        other => other,
+    }
+}
+
 /// Player search results: `/wows/account/list/`.
 #[must_use]
 pub fn player_search(server: Server, api_key: &str, query: &str) -> String {
@@ -42,8 +57,9 @@ pub fn ship_info(server: Server, api_key: &str, account_id: u64) -> String {
 #[must_use]
 pub fn ship_wiki(server: Server, api_key: &str, ship_id: u64, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/ships/?application_id={api_key}&ship_id={ship_id}&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/ships/?application_id={api_key}&ship_id={ship_id}&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -69,8 +85,9 @@ pub fn language(server: Server, api_key: &str) -> String {
 #[must_use]
 pub fn encyclopedia(server: Server, api_key: &str, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/info/?application_id={api_key}&fields=ship_nations%2Cship_modules%2Cship_types&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/info/?application_id={api_key}&fields=ship_nations%2Cship_modules%2Cship_types&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -78,8 +95,9 @@ pub fn encyclopedia(server: Server, api_key: &str, language: &str) -> String {
 #[must_use]
 pub fn warship(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/ships/?application_id={api_key}&fields=name%2Cnation%2Ctype%2Ctier%2Cship_id%2Cship_id_str%2Cimages.small%2Cis_premium%2Cis_special&page_no={page_no}&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/ships/?application_id={api_key}&fields=name%2Cnation%2Ctype%2Ctier%2Cship_id%2Cship_id_str%2Cimages.small%2Cis_premium%2Cis_special&page_no={page_no}&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -96,8 +114,9 @@ pub fn player_achievement(server: Server, api_key: &str, account_id: u64) -> Str
 #[must_use]
 pub fn achievements_wiki(server: Server, api_key: &str, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/achievements/?application_id={api_key}&fields=battle.achievement_id%2Cbattle.name%2Cbattle.image&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/achievements/?application_id={api_key}&fields=battle.achievement_id%2Cbattle.name%2Cbattle.image&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -159,8 +178,9 @@ pub fn rank_ship_info(server: Server, api_key: &str, account_id: u64) -> String 
 #[must_use]
 pub fn collections(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/collections/?application_id={api_key}&fields=-card_cost%2C-tag&page_no={page_no}&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/collections/?application_id={api_key}&fields=-card_cost%2C-tag&page_no={page_no}&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -168,8 +188,9 @@ pub fn collections(server: Server, api_key: &str, page_no: u64, language: &str) 
 #[must_use]
 pub fn collection_cards(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/collectioncards/?application_id={api_key}&fields=images.small%2Ccard_id%2Ccollection_id%2Cdescription%2Cname&page_no={page_no}&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/collectioncards/?application_id={api_key}&fields=images.small%2Ccard_id%2Ccollection_id%2Cdescription%2Cname&page_no={page_no}&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -177,8 +198,9 @@ pub fn collection_cards(server: Server, api_key: &str, page_no: u64, language: &
 #[must_use]
 pub fn consumables(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/consumables/?application_id={api_key}&fields=type%2Cconsumable_id%2Cdescription%2Cname%2Cimage%2Cprice_credit%2Cprice_gold%2Cprofile.description&page_no={page_no}&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/consumables/?application_id={api_key}&fields=type%2Cconsumable_id%2Cdescription%2Cname%2Cimage%2Cprice_credit%2Cprice_gold%2Cprofile.description&page_no={page_no}&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -186,8 +208,9 @@ pub fn consumables(server: Server, api_key: &str, page_no: u64, language: &str) 
 #[must_use]
 pub fn commander_skills(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/crewskills/?application_id={api_key}&page_no={page_no}&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/crewskills/?application_id={api_key}&page_no={page_no}&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -195,8 +218,9 @@ pub fn commander_skills(server: Server, api_key: &str, page_no: u64, language: &
 #[must_use]
 pub fn battle_arenas(server: Server, api_key: &str, page_no: u64, language: &str) -> String {
     format!(
-        "https://api.worldofwarships.{}/wows/encyclopedia/battlearenas/?application_id={api_key}&fields=name%2Cicon%2Cdescription&page_no={page_no}&language={language}",
-        server.domain()
+        "https://api.worldofwarships.{}/wows/encyclopedia/battlearenas/?application_id={api_key}&fields=name%2Cicon%2Cdescription&page_no={page_no}&language={}",
+        server.domain(),
+        api_language(language)
     )
 }
 
@@ -215,6 +239,22 @@ pub const GITHUB_APP_VERSION: &str =
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn api_language_maps_game_codes_to_wg_codes() {
+        assert_eq!(api_language("en"), "en");
+        assert_eq!(api_language("ja"), "ja");
+        assert_eq!(api_language("zh_sg"), "zh-cn");
+        assert_eq!(api_language("zh_tw"), "zh-tw");
+    }
+
+    #[test]
+    fn wiki_urls_use_wg_language_codes() {
+        assert!(collections(Server::Eu, "K", 1, "zh_sg").ends_with("language=zh-cn"));
+        assert!(battle_arenas(Server::Eu, "K", 1, "zh_tw").ends_with("language=zh-tw"));
+        assert!(warship(Server::Eu, "K", 1, "zh_sg").contains("language=zh-cn"));
+        assert!(ship_wiki(Server::Eu, "K", 1, "zh_sg").ends_with("language=zh-cn"));
+    }
 
     #[test]
     fn search_url_includes_server_and_key() {

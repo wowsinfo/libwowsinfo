@@ -52,6 +52,9 @@ pub struct ShellDpmView {
     pub salvo_damage: i64,
     /// Full-salvo weight in kg (`shell weight * barrels`).
     pub salvo_weight_kg: f64,
+    /// Fires per minute (`burn_chance * barrels * rof`), rounded to 2
+    /// decimals (ShipBuilder `PotentialFpm`); 0 for non-HE shells.
+    pub potential_fpm: f64,
 }
 
 /// One turret firing arc.
@@ -174,6 +177,10 @@ pub(super) fn main_battery_view(
             dpm: (shell.damage as f64 * barrels as f64 * rof).round() as i64,
             salvo_damage: shell.damage * barrels,
             salvo_weight_kg: shell.weight * barrels as f64,
+            potential_fpm: shell
+                .burn_chance
+                .map(|chance| ((chance * barrels as f64 * rof) * 100.0).round() / 100.0)
+                .unwrap_or(0.0),
         })
         .collect();
     view

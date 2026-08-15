@@ -197,6 +197,32 @@ fn real_wowsinfo_json_parses_when_available() {
                 "slot {} aircraft lookup failed",
                 slot.slot
             );
+            if let Some(plane) = resolved {
+                assert!(
+                    plane.attack_count.is_some_and(|count| count > 0),
+                    "slot {} attack count populated",
+                    slot.slot
+                );
+                assert!(
+                    plane.attacker.is_some_and(|attacker| attacker > 0),
+                    "slot {} attacker size populated",
+                    slot.slot
+                );
+                assert!(plane.health > 0.0, "slot {} plane hp", slot.slot);
+                assert!(plane.squadron_hp > 0.0, "slot {} squadron hp", slot.slot);
+                assert!(
+                    plane.attack_group_hp > 0.0,
+                    "slot {} attack group hp",
+                    slot.slot
+                );
+                if plane.aiming_accuracy_increase_rate.is_some() {
+                    assert!(
+                        plane.aiming_rate_moving_percent.is_some(),
+                        "slot {} aiming rate moving",
+                        slot.slot
+                    );
+                }
+            }
         }
         let _ = ship;
     }

@@ -26,6 +26,8 @@ pub struct ConsumableView {
     pub r#type: String,
     pub reload_s: f64,
     pub work_s: f64,
+    /// Preparation time before the consumable activates (`workPreparationTime`).
+    pub preparation_s: f64,
     /// -1 means unlimited charges.
     pub charges: i64,
     /// Ship-specific alter variants (name/description only).

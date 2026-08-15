@@ -29,14 +29,28 @@ pub fn parse_aircrafts(json: &Value) -> HashMap<String, AircraftInfo> {
                 total_planes: i64_field(value, "totalPlanes"),
                 visibility: f64_field(value, "visibility"),
                 speed: f64_field(value, "speed"),
-                attack_count: aircraft.and_then(|a| {
-                    a.get("attackCount")
-                        .and_then(Value::as_i64)
-                }),
-                attacker: aircraft.and_then(|a| a.get("attacker").and_then(Value::as_i64)),
+                // v15.7 flattens these to the top level (`attackerSize`,
+                // `restorationTime`, `attackCount`, `bombName`); older shapes
+                // nest them under `aircraft`. Prefer the flat form, fall back
+                // to the nested block.
+                attack_count: aircraft
+                    .and_then(|a| a.get("attackCount"))
+                    .or_else(|| value.get("attackCount"))
+                    .and_then(Value::as_i64),
+                attacker: aircraft
+                    .and_then(|a| a.get("attacker"))
+                    .or_else(|| value.get("attackerSize"))
+                    .and_then(Value::as_i64),
                 max_aircraft: aircraft.and_then(|a| a.get("maxAircraft").and_then(Value::as_i64)),
-                restore_time: aircraft.and_then(|a| a.get("restoreTime").and_then(Value::as_f64)),
-                bomb_name: aircraft.and_then(|a| a.get("bombName").and_then(Value::as_str).map(ToOwned::to_owned)),
+                restore_time: aircraft
+                    .and_then(|a| a.get("restoreTime"))
+                    .or_else(|| value.get("restorationTime"))
+                    .and_then(Value::as_f64),
+                bomb_name: aircraft
+                    .and_then(|a| a.get("bombName"))
+                    .or_else(|| value.get("bombName"))
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned),
                 attack_cooldown: opt_f64(value, "attackCooldown"),
                 attack_interval: opt_f64(value, "attackInterval"),
                 aiming_time: opt_f64(value, "aimingTime"),

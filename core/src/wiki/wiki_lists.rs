@@ -190,6 +190,10 @@ pub fn all_consumable_views(data: &GameData, lang: &LangMap) -> Vec<ConsumableVi
                     .get("workTime")
                     .and_then(serde_json::Value::as_f64)
                     .unwrap_or(0.0),
+                preparation_s: params
+                    .get("workPreparationTime")
+                    .and_then(serde_json::Value::as_f64)
+                    .unwrap_or(0.0),
                 charges: params
                     .get("numConsumables")
                     .and_then(serde_json::Value::as_i64)

@@ -64,7 +64,28 @@ pub fn parse_collection_cards(json: &Value) -> HashMap<u64, CollectionCard> {
 /// Parse one page of `/wows/encyclopedia/battlearenas/`.
 #[must_use]
 pub fn parse_maps(json: &Value) -> HashMap<u64, WikiMap> {
-    parse_wiki_map(json, "arena_id")
+    let empty = Value::Object(Map::new());
+    let data = guard(json, "data", &empty);
+    let mut out = HashMap::new();
+    if let Some(map) = data.as_object() {
+        for (key, value) in map {
+            // The API does not repeat `arena_id` inside each entry; the map
+            // key is the arena id. Accept either so pagination stays stable.
+            let Some(id) = value
+                .get("arena_id")
+                .and_then(Value::as_u64)
+                .or_else(|| key.parse().ok())
+            else {
+                continue;
+            };
+            let mut item: WikiMap = serde_json::from_value(value.clone()).unwrap_or_default();
+            if item.arena_id == 0 {
+                item.arena_id = id;
+            }
+            out.insert(id, item);
+        }
+    }
+    out
 }
 
 /// Parse one page of `/wows/encyclopedia/consumables/`. The `profile` field is
