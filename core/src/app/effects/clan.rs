@@ -2,7 +2,9 @@
 
 use super::super::*;
 
-pub(super) fn on_clan_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+use super::player::try_assemble;
+
+pub(crate) fn on_clan_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     let mut commands = Vec::new();
     match outcome {
         HttpOutcome::Ok { body } => {
@@ -34,7 +36,7 @@ pub(super) fn on_clan_loaded(model: &mut Model, outcome: HttpOutcome) -> Command
 }
 
 
-pub(super) fn on_clan_info_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_clan_info_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -48,7 +50,7 @@ pub(super) fn on_clan_info_loaded(model: &mut Model, outcome: HttpOutcome) -> Co
 }
 
 
-pub(super) fn on_clan_search_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_clan_search_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -60,7 +62,7 @@ pub(super) fn on_clan_search_loaded(model: &mut Model, outcome: HttpOutcome) -> 
 }
 
 
-pub(super) fn on_clan_selected_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_clan_selected_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();

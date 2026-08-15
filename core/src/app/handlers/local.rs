@@ -2,76 +2,7 @@
 
 use super::super::*;
 
-pub(super) fn load_wiki(model: &mut Model, dataset: WikiDataset) -> Command<Effect, Event> {
-    let loaded = match dataset {
-        WikiDataset::Collections => !model.wiki_collections.is_empty(),
-        WikiDataset::CollectionCards => !model.wiki_collection_cards.is_empty(),
-        WikiDataset::Consumables => !model.wiki_consumables.is_empty(),
-        WikiDataset::CommanderSkills => !model.wiki_commander_skills.is_empty(),
-        WikiDataset::Maps => !model.wiki_maps.is_empty(),
-    };
-    if loaded || model.downloading_wiki.contains(&dataset) {
-        return render::render();
-    }
-    let Some(config) = model.config.clone() else {
-        return render::render();
-    };
-    let key = api_key(&config);
-    if key.is_empty() {
-        return render::render();
-    }
-    model.downloading_wiki.insert(dataset);
-    HttpCap::get(wiki_url(dataset, model.server, &key, 1, &model.api_language))
-        .expect_string()
-        .build()
-        .then_send(move |result| Event::WikiLoaded {
-            dataset,
-            outcome: http_outcome(result),
-        })
-}
-
-/// Load the paginated ship encyclopedia, skipping when already loaded or a
-/// download is in flight (used by the wiki ships tab).
-
-pub(super) fn load_warship(model: &mut Model) -> Command<Effect, Event> {
-    if !model.warship.is_empty() || model.downloading_warship {
-        return render::render();
-    }
-    let Some(config) = model.config.clone() else {
-        return render::render();
-    };
-    let key = api_key(&config);
-    if key.is_empty() {
-        return render::render();
-    }
-    model.downloading_warship = true;
-    HttpCap::get(api::warship(model.server, &key, 1, &model.api_language))
-        .expect_string()
-        .build()
-        .then_send(|result| Event::WarshipLoaded(http_outcome(result)))
-}
-
-/// Load one ship's full wiki entry (`/wows/encyclopedia/ships/?ship_id=`).
-
-pub(super) fn load_ship_wiki(model: &mut Model, ship_id: u64) -> Command<Effect, Event> {
-    let Some(config) = model.config.clone() else {
-        return render::render();
-    };
-    let key = api_key(&config);
-    if key.is_empty() {
-        return render::render();
-    }
-    model.pending_ship_wiki_id = Some(ship_id);
-    HttpCap::get(api::ship_wiki(model.server, &key, ship_id, &model.api_language))
-        .expect_string()
-        .build()
-        .then_send(|result| Event::ShipWikiLoaded(http_outcome(result)))
-}
-
-/// Decompress and parse the bundled `wowsinfo.zst` / `lang.zst` into memory
-/// (local mode). The payloads are the raw compressed asset bytes.
-
-pub(super) fn set_local_data(
+pub(crate) fn set_local_data(
     model: &mut Model,
     ships: Vec<u8>,
     lang: Vec<u8>,
@@ -143,7 +74,7 @@ fn fill_local_warships(model: &mut Model) {
 
 /// Change the interface/data language and persist it.
 
-pub(super) fn set_language(model: &mut Model, language: String) -> Command<Effect, Event> {
+pub(crate) fn set_language(model: &mut Model, language: String) -> Command<Effect, Event> {
     model.api_language = if language.is_empty() {
         data::DEFAULT_USER_LANGUAGE.to_string()
     } else {
@@ -187,7 +118,7 @@ fn rebuild_local_ship(model: &mut Model) {
 
 /// Fill the warship encyclopedia from the local game data (offline ship list).
 
-pub(super) fn load_local_warships(model: &mut Model) -> Command<Effect, Event> {
+pub(crate) fn load_local_warships(model: &mut Model) -> Command<Effect, Event> {
     if !model.warship.is_empty() {
         return render::render();
     }
@@ -197,7 +128,7 @@ pub(super) fn load_local_warships(model: &mut Model) -> Command<Effect, Event> {
 
 /// Build the local wiki entry for one ship from `wowsinfo.json`.
 
-pub(super) fn load_local_ship_wiki(model: &mut Model, ship_id: u64) -> Command<Effect, Event> {
+pub(crate) fn load_local_ship_wiki(model: &mut Model, ship_id: u64) -> Command<Effect, Event> {
     model.local_ship_id = Some(ship_id);
     rebuild_local_ship(model);
     render::render()
@@ -205,7 +136,7 @@ pub(super) fn load_local_ship_wiki(model: &mut Model, ship_id: u64) -> Command<E
 
 /// Apply a module slot selection and rebuild the selected local ship.
 
-pub(super) fn select_local_ship_module(
+pub(crate) fn select_local_ship_module(
     model: &mut Model,
     slot: String,
     index: i64,
@@ -229,7 +160,7 @@ pub(super) fn select_local_ship_module(
 
 /// Build the local comparison table for a list of ship ids.
 
-pub(super) fn load_local_compare(
+pub(crate) fn load_local_compare(
     model: &mut Model,
     ship_ids: Vec<u64>,
 ) -> Command<Effect, Event> {
@@ -241,7 +172,7 @@ pub(super) fn load_local_compare(
 
 /// Toggle a selected commander skill and rebuild the ship stats.
 
-pub(super) fn toggle_local_skill(model: &mut Model, key: String) -> Command<Effect, Event> {
+pub(crate) fn toggle_local_skill(model: &mut Model, key: String) -> Command<Effect, Event> {
     if !model.local_skills.remove(&key) {
         model.local_skills.insert(key);
     }
@@ -251,7 +182,7 @@ pub(super) fn toggle_local_skill(model: &mut Model, key: String) -> Command<Effe
 
 /// Toggle a selected module upgrade and rebuild the ship stats.
 
-pub(super) fn toggle_local_upgrade(model: &mut Model, key: String) -> Command<Effect, Event> {
+pub(crate) fn toggle_local_upgrade(model: &mut Model, key: String) -> Command<Effect, Event> {
     if !model.local_upgrades.remove(&key) {
         model.local_upgrades.insert(key);
     }
@@ -260,4 +191,29 @@ pub(super) fn toggle_local_upgrade(model: &mut Model, key: String) -> Command<Ef
 }
 
 /// Toggle a selected signal flag and rebuild the ship stats.
+
+pub(crate) fn toggle_local_flag(model: &mut Model, key: String) -> Command<Effect, Event> {
+    if !model.local_flags.remove(&key) {
+        model.local_flags.insert(key);
+    }
+    rebuild_local_ship(model);
+    render::render()
+}
+
+/// Set the simulated HP level (0..1) and rebuild conditional stats.
+
+pub(crate) fn set_local_hp(model: &mut Model, fraction: f64) -> Command<Effect, Event> {
+    model.local_hp = fraction.clamp(0.0, 1.0);
+    rebuild_local_ship(model);
+    render::render()
+}
+
+/// Set whether the ship is considered spotted and rebuild trigger skills.
+
+pub(crate) fn set_local_spotted(model: &mut Model, spotted: bool) -> Command<Effect, Event> {
+    model.local_spotted = spotted;
+    rebuild_local_ship(model);
+    render::render()
+}
+
 

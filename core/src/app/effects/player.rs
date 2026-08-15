@@ -2,7 +2,7 @@
 
 use super::super::*;
 
-pub(super) fn on_search_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_search_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -17,7 +17,7 @@ pub(super) fn on_search_loaded(model: &mut Model, outcome: HttpOutcome) -> Comma
 }
 
 
-pub(super) fn on_player_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_player_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -37,7 +37,7 @@ pub(super) fn on_player_loaded(model: &mut Model, outcome: HttpOutcome) -> Comma
 }
 
 
-pub(super) fn on_ships_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_ships_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -53,7 +53,7 @@ pub(super) fn on_ships_loaded(model: &mut Model, outcome: HttpOutcome) -> Comman
 }
 
 
-pub(super) fn on_warship_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_warship_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     let mut commands = Vec::new();
     match outcome {
         HttpOutcome::Ok { body } => {
@@ -108,7 +108,7 @@ pub(super) fn on_warship_loaded(model: &mut Model, outcome: HttpOutcome) -> Comm
 }
 
 
-pub(super) fn on_pr_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_pr_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -129,7 +129,7 @@ pub(super) fn on_pr_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<E
 }
 
 
-pub(super) fn on_achievements_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_achievements_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -146,7 +146,7 @@ pub(super) fn on_achievements_loaded(model: &mut Model, outcome: HttpOutcome) ->
 }
 
 
-pub(super) fn on_achievements_wiki_loaded(
+pub(crate) fn on_achievements_wiki_loaded(
     model: &mut Model,
     outcome: HttpOutcome,
 ) -> Command<Effect, Event> {
@@ -172,26 +172,23 @@ pub(super) fn on_achievements_wiki_loaded(
 }
 
 
-pub(super) fn on_game_version_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_recent_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
-            let empty = serde_json::Value::String(String::new());
-            let version = downloader::guard(&json, "data.game_version", &empty)
-                .as_str()
-                .unwrap_or("")
-                .to_string();
-            if !version.is_empty() {
-                model.game_version = Some(version);
+            if let Some(account_id) = model.pending_account_id {
+                model.recent = downloader::parse_recent_overview(&json, account_id);
             }
         }
+        // The `statsbydate` endpoint is no longer served by the API; recent
+        // charts simply stay hidden until a data source is available.
         HttpOutcome::Err { .. } => {}
     }
-    render::render()
+    try_assemble(model)
 }
 
 
-fn fetch_achievements_wiki(model: &mut Model) -> Command<Effect, Event> {
+pub(super) fn fetch_achievements_wiki(model: &mut Model) -> Command<Effect, Event> {
     if model.downloading_achievements {
         return render::render();
     }
@@ -210,7 +207,7 @@ fn fetch_achievements_wiki(model: &mut Model) -> Command<Effect, Event> {
 }
 
 
-fn try_assemble(model: &mut Model) -> Command<Effect, Event> {
+pub(super) fn try_assemble(model: &mut Model) -> Command<Effect, Event> {
     if model.downloading_warship {
         // The ship encyclopedia is still downloading; keep the loading phase
         // until the final page so the view isn't assembled from partial data.

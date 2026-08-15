@@ -2,7 +2,10 @@
 
 use super::super::*;
 
-pub(super) fn on_rank_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+use super::player::try_assemble;
+use super::player::fetch_achievements_wiki;
+
+pub(crate) fn on_rank_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -16,7 +19,7 @@ pub(super) fn on_rank_loaded(model: &mut Model, outcome: HttpOutcome) -> Command
 }
 
 
-pub(super) fn on_rank_ships_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_rank_ships_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -30,7 +33,7 @@ pub(super) fn on_rank_ships_loaded(model: &mut Model, outcome: HttpOutcome) -> C
 }
 
 
-pub(super) fn on_online_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_online_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -42,7 +45,7 @@ pub(super) fn on_online_loaded(model: &mut Model, outcome: HttpOutcome) -> Comma
 }
 
 
-pub(super) fn on_wiki_loaded(
+pub(crate) fn on_wiki_loaded(
     model: &mut Model,
     dataset: WikiDataset,
     outcome: HttpOutcome,
@@ -96,7 +99,7 @@ pub(super) fn on_wiki_loaded(
                 let config = model.config.clone().expect("checked above");
                 let key = api_key(&config);
                 commands.push(
-                    HttpCap::get(super::handlers::wiki_url(
+                    HttpCap::get(crate::app::handlers::wiki_url(
                         dataset,
                         model.server,
                         &key,
@@ -123,7 +126,7 @@ pub(super) fn on_wiki_loaded(
 }
 
 
-pub(super) fn on_ship_wiki_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_ship_wiki_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
@@ -137,23 +140,26 @@ pub(super) fn on_ship_wiki_loaded(model: &mut Model, outcome: HttpOutcome) -> Co
 }
 
 
-pub(super) fn on_recent_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_game_version_loaded(model: &mut Model, outcome: HttpOutcome) -> Command<Effect, Event> {
     match outcome {
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
-            if let Some(account_id) = model.pending_account_id {
-                model.recent = downloader::parse_recent_overview(&json, account_id);
+            let empty = serde_json::Value::String(String::new());
+            let version = downloader::guard(&json, "data.game_version", &empty)
+                .as_str()
+                .unwrap_or("")
+                .to_string();
+            if !version.is_empty() {
+                model.game_version = Some(version);
             }
         }
-        // The `statsbydate` endpoint is no longer served by the API; recent
-        // charts simply stay hidden until a data source is available.
         HttpOutcome::Err { .. } => {}
     }
-    try_assemble(model)
+    render::render()
 }
 
 
-pub(super) fn on_kv_loaded(model: &mut Model, key: String, value: KvOutcome) -> Command<Effect, Event> {
+pub(crate) fn on_kv_loaded(model: &mut Model, key: String, value: KvOutcome) -> Command<Effect, Event> {
     match value {
         KvOutcome::Ok { value: Some(json) } => match key.as_str() {
             data::local::USER_SERVER => {
@@ -203,6 +209,4 @@ pub(super) fn on_kv_loaded(model: &mut Model, key: String, value: KvOutcome) -> 
     }
     render::render()
 }
-
-/// Fetch (and cache) the achievements encyclopedia when nothing is cached yet.
 

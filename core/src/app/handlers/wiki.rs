@@ -2,7 +2,7 @@
 
 use super::super::*;
 
-pub(super) fn wiki_url(
+pub(crate) fn wiki_url(
     dataset: WikiDataset,
     server: Server,
     key: &str,
@@ -19,33 +19,15 @@ pub(super) fn wiki_url(
 }
 
 
-pub(super) fn search(model: &mut Model, query: String) -> Command<Effect, Event> {
-    model.search_results.clear();
-    if query.trim().is_empty() {
-        model.phase = Phase::Idle;
-        return render::render();
-    }
-    let Some(config) = model.config.clone() else {
-        model.phase = Phase::Error("App not initialised".to_string());
-        return render::render();
+pub(crate) fn load_wiki(model: &mut Model, dataset: WikiDataset) -> Command<Effect, Event> {
+    let loaded = match dataset {
+        WikiDataset::Collections => !model.wiki_collections.is_empty(),
+        WikiDataset::CollectionCards => !model.wiki_collection_cards.is_empty(),
+        WikiDataset::Consumables => !model.wiki_consumables.is_empty(),
+        WikiDataset::CommanderSkills => !model.wiki_commander_skills.is_empty(),
+        WikiDataset::Maps => !model.wiki_maps.is_empty(),
     };
-    let key = api_key(&config);
-    if key.is_empty() {
-        model.phase = Phase::Error(MISSING_KEY_MESSAGE.to_string());
-        return render::render();
-    }
-    model.phase = Phase::Searching;
-    HttpCap::get(api::player_search(model.server, &key, &query))
-        .expect_string()
-        .build()
-        .then_send(|result| Event::SearchLoaded(http_outcome(result)))
-}
-
-/// Clan search: `/wows/clans/list/`.
-
-pub(super) fn search_clan(model: &mut Model, query: String) -> Command<Effect, Event> {
-    model.clan_search_results.clear();
-    if query.trim().is_empty() {
+    if loaded || model.downloading_wiki.contains(&dataset) {
         return render::render();
     }
     let Some(config) = model.config.clone() else {
@@ -55,15 +37,23 @@ pub(super) fn search_clan(model: &mut Model, query: String) -> Command<Effect, E
     if key.is_empty() {
         return render::render();
     }
-    HttpCap::get(api::clan_search(model.server, &key, &query))
+    model.downloading_wiki.insert(dataset);
+    HttpCap::get(wiki_url(dataset, model.server, &key, 1, &model.api_language))
         .expect_string()
         .build()
-        .then_send(|result| Event::ClanSearchLoaded(http_outcome(result)))
+        .then_send(move |result| Event::WikiLoaded {
+            dataset,
+            outcome: http_outcome(result),
+        })
 }
 
-/// Open clan info: `/wows/clans/info/`.
+/// Load the paginated ship encyclopedia, skipping when already loaded or a
+/// download is in flight (used by the wiki ships tab).
 
-pub(super) fn select_clan(model: &mut Model, clan_id: u64) -> Command<Effect, Event> {
+pub(crate) fn load_warship(model: &mut Model) -> Command<Effect, Event> {
+    if !model.warship.is_empty() || model.downloading_warship {
+        return render::render();
+    }
     let Some(config) = model.config.clone() else {
         return render::render();
     };
@@ -71,12 +61,27 @@ pub(super) fn select_clan(model: &mut Model, clan_id: u64) -> Command<Effect, Ev
     if key.is_empty() {
         return render::render();
     }
-    HttpCap::get(api::clan_info(model.server, &key, clan_id))
+    model.downloading_warship = true;
+    HttpCap::get(api::warship(model.server, &key, 1, &model.api_language))
         .expect_string()
         .build()
-        .then_send(|result| Event::ClanSelectedLoaded(http_outcome(result)))
+        .then_send(|result| Event::WarshipLoaded(http_outcome(result)))
 }
 
-/// Load a wiki dataset (`/wows/encyclopedia/*`), skipping when it is already
-/// loaded or a download is in flight.
+/// Load one ship's full wiki entry (`/wows/encyclopedia/ships/?ship_id=`).
+
+pub(crate) fn load_ship_wiki(model: &mut Model, ship_id: u64) -> Command<Effect, Event> {
+    let Some(config) = model.config.clone() else {
+        return render::render();
+    };
+    let key = api_key(&config);
+    if key.is_empty() {
+        return render::render();
+    }
+    model.pending_ship_wiki_id = Some(ship_id);
+    HttpCap::get(api::ship_wiki(model.server, &key, ship_id, &model.api_language))
+        .expect_string()
+        .build()
+        .then_send(|result| Event::ShipWikiLoaded(http_outcome(result)))
+}
 
