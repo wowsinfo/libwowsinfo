@@ -30,6 +30,7 @@ import com.wowsinfo.libwowsinfo.ui.formatNumber
 import coil.compose.AsyncImage
 import java.util.Locale
 import kotlin.math.abs
+import com.wowsinfo.libwowsinfo.ui.LocalUnits
 
 private fun fmt(value: Double, digits: Int = 1): String =
     String.format(Locale.US, "%,.${digits}f", value)
@@ -73,17 +74,17 @@ fun ConsumablesSection(consumables: List<ConsumableView>, adjusted: AdjustedStat
                 Text(
                     text = buildString {
                         if (consumable.preparationS > 0) {
-                            append("prep ${fmt(consumable.preparationS)} s · ")
+                            append("prep ${fmt(consumable.preparationS)}${LocalUnits.current.seconds} · ")
                         }
                         if (consumable.workS > 0) {
                             val work = consumable.workS * adjusted.consumableWorkMult
-                            append("${fmt(work)} s")
+                            append("${fmt(work)}${LocalUnits.current.seconds}")
                             if (abs(work - consumable.workS) > 0.1) append(" (${fmt(consumable.workS)})")
                             append(" · ")
                         }
                         if (consumable.reloadS > 0) {
                             val reload = consumable.reloadS * adjusted.consumableReloadMult
-                            append("reload ${fmt(reload)} s")
+                            append("reload ${fmt(reload)}${LocalUnits.current.seconds}")
                             if (abs(reload - consumable.reloadS) > 0.1) {
                                 append(" (${fmt(consumable.reloadS)})")
                             }

@@ -54,25 +54,28 @@ class WikiShipDetailActivity : ComponentActivity() {
                             )
                         }
                     } else {
-                        WikiShipDetailScreen(
-                            ship = ship,
-                            compare = viewModel.localCompare,
-                            onBack = { finish() },
-                            onShipClick = { id ->
-                                startActivity(
-                                    Intent(this, WikiShipDetailActivity::class.java)
-                                        .putExtra(EXTRA_SHIP_ID, id.toString()),
-                                )
-                            },
-                            onSelectModule = { slot, index ->
-                                core.update(Event.SelectLocalShipModule(slot, index))
-                            },
-                            onCompare = { shipIds ->
-                                core.update(Event.LoadLocalCompare(shipIds))
-                            },
-                            onToggleSkill = { key ->
-                                core.update(Event.ToggleLocalSkill(key))
-                            },
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            com.wowsinfo.libwowsinfo.ui.LocalUnits provides viewModel.units,
+                        ) {
+                            WikiShipDetailScreen(
+                                ship = ship,
+                                compare = viewModel.localCompare,
+                                onBack = { finish() },
+                                onShipClick = { id ->
+                                    startActivity(
+                                        Intent(this, WikiShipDetailActivity::class.java)
+                                            .putExtra(EXTRA_SHIP_ID, id.toString()),
+                                    )
+                                },
+                                onSelectModule = { slot, index ->
+                                    core.update(Event.SelectLocalShipModule(slot, index))
+                                },
+                                onCompare = { shipIds ->
+                                    core.update(Event.LoadLocalCompare(shipIds))
+                                },
+                                onToggleSkill = { key ->
+                                    core.update(Event.ToggleLocalSkill(key))
+                                },
                             onToggleUpgrade = { key ->
                                 core.update(Event.ToggleLocalUpgrade(key))
                             },
@@ -91,6 +94,7 @@ class WikiShipDetailActivity : ComponentActivity() {
                 }
             }
         }
+    }
     }
 
     companion object {

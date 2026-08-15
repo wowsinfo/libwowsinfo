@@ -49,6 +49,7 @@ import coil.compose.AsyncImage
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.floor
+import com.wowsinfo.libwowsinfo.ui.LocalUnits
 
 private fun fmt(value: Double, digits: Int = 1): String =
     String.format(Locale.US, "%,.${digits}f", value)
@@ -106,7 +107,7 @@ fun SurvivabilitySection(hull: HullStats, adjusted: AdjustedStats) {
             }
             surv.fire?.let { fire ->
                 Text(
-                    text = "Fire: ${fire.spots} spots · ${fmt(fire.duration)} s · " +
+                    text = "Fire: ${fire.spots} spots · ${fmt(fire.duration)}${LocalUnits.current.seconds} · " +
                         "${fmtInt(fire.dps)} DPS · ${fmtInt(fire.totalDamage)} dmg",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -114,7 +115,7 @@ fun SurvivabilitySection(hull: HullStats, adjusted: AdjustedStats) {
             }
             surv.flood?.let { flood ->
                 Text(
-                    text = "Flood: ${flood.spots} spots · ${fmt(flood.duration)} s · " +
+                    text = "Flood: ${flood.spots} spots · ${fmt(flood.duration)}${LocalUnits.current.seconds} · " +
                         "${fmtInt(flood.dps)} DPS · ${fmtInt(flood.totalDamage)} dmg",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -130,13 +131,13 @@ fun ArmorSection(armor: ArmorView) {
         StatGrid(
             listOf(
                 Triple("Hull zones", "${armor.zoneCount}", 1),
-                Triple("Max thickness", "${fmt(armor.maxZoneThickness)} mm", 2),
+                Triple("Max thickness", "${fmt(armor.maxZoneThickness)}${LocalUnits.current.millimeter}", 2),
             ),
         )
         if (armor.zoneGroups.isNotEmpty()) {
             armor.zoneGroups.take(8).forEach { group ->
                 Text(
-                    text = "${fmt(group.thickness)} mm × ${group.count}",
+                    text = "${fmt(group.thickness)}${LocalUnits.current.millimeter} × ${group.count}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -150,8 +151,8 @@ fun ArmorSection(armor: ArmorView) {
             )
             armor.turrets.forEachIndexed { index, turret ->
                 Text(
-                    text = "Turret ${index + 1}: ${turret.barrels}×${fmt(turret.caliber * 1000, 0)} mm · " +
-                        "Armor ${fmt(turret.armor, 0)} mm · Barbette ${fmt(turret.barbette, 0)} mm",
+                    text = "Turret ${index + 1}: ${turret.barrels}×${fmt(turret.caliber * 1000, 0)}${LocalUnits.current.millimeter} · " +
+                        "Armor ${fmt(turret.armor, 0)}${LocalUnits.current.millimeter} · Barbette ${fmt(turret.barbette, 0)}${LocalUnits.current.millimeter}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -198,7 +199,14 @@ private fun statWithBase(base: Double, adjusted: Double, suffix: String): String
     val text = if (suffix.isEmpty() && value == floor(value)) {
         fmtInt(value)
     } else {
-        "${fmt(value)}${if (suffix.isEmpty()) "" else " $suffix"}"
+        when {
+            suffix.isEmpty() -> fmt(value)
+            // Localized units already carry their leading space (Latin) or
+            // join directly (CJK); only bare literal suffixes need a space.
+            suffix.startsWith(' ') || suffix.any { it in '\u4E00'..'\u9FFF' } ->
+                "${fmt(value)}$suffix"
+            else -> "${fmt(value)} $suffix"
+        }
     }
     return if (abs(base - adjusted) > 0.01) "$text ($base)" else text
 }
@@ -217,20 +225,20 @@ fun MainBatterySection(battery: MainBatteryView, adjusted: AdjustedStats, curves
             listOf(
                 Triple(
                     "Caliber",
-                    if (battery.caliberMm > 0) "${fmt(battery.caliberMm, 0)} mm" else "—",
+                    if (battery.caliberMm > 0) "${fmt(battery.caliberMm, 0)}${LocalUnits.current.millimeter}" else "—",
                     0,
                 ),
                 Triple("Configuration", battery.configuration, 1),
-                Triple("Range", statWithBase(battery.rangeM / 1000, adjusted.gunRangeM / 1000, "km"), 2),
-                Triple("Reload", statWithBase(battery.reloadS, adjusted.gunReloadS, "s"), 3),
-                Triple("Rotation", statWithBase(battery.rotationDegS, adjusted.gunRotationDegS, "°/s"), 4),
+                Triple("Range", statWithBase(battery.rangeM / 1000, adjusted.gunRangeM / 1000, LocalUnits.current.kilometer), 2),
+                Triple("Reload", statWithBase(battery.reloadS, adjusted.gunReloadS, LocalUnits.current.seconds), 3),
+                Triple("Rotation", statWithBase(battery.rotationDegS, adjusted.gunRotationDegS, " °/s"), 4),
             ),
         )
         StatGrid(
             listOf(
                 Triple(
                     "Turn 180°",
-                    if (battery.turnTimeS > 0) "${fmt(battery.turnTimeS)} s" else "—",
+                    if (battery.turnTimeS > 0) "${fmt(battery.turnTimeS)}${LocalUnits.current.seconds}" else "—",
                     5,
                 ),
                 Triple(
@@ -244,7 +252,7 @@ fun MainBatterySection(battery: MainBatteryView, adjusted: AdjustedStats, curves
         if (battery.ammoSwitchS > 0) {
             StatGrid(
                 listOf(
-                    Triple("Ammo switch", "${fmt(battery.ammoSwitchS)} s", 1),
+                    Triple("Ammo switch", "${fmt(battery.ammoSwitchS)}${LocalUnits.current.seconds}", 1),
                     Triple("Barrels", battery.barrels.toString(), 2),
                 ),
             )
@@ -273,14 +281,14 @@ private fun DispersionSection(disp: DispersionView) {
         fontWeight = FontWeight.Bold,
     )
     Text(
-        text = "Max range: H ${fmt(disp.atMax.horizontalM)} m · V ${fmt(disp.atMax.verticalM)} m",
+        text = "Max range: H ${fmt(disp.atMax.horizontalM)}${LocalUnits.current.meter} · V ${fmt(disp.atMax.verticalM)}${LocalUnits.current.meter}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     disp.samples.forEach { point ->
         Text(
-            text = "${fmt(point.rangeM / 1000)} km: H ${fmt(point.horizontalM)} m · " +
-                "V ${fmt(point.verticalM)} m",
+            text = "${fmt(point.rangeM / 1000)}${LocalUnits.current.kilometer}: H ${fmt(point.horizontalM)}${LocalUnits.current.meter} · " +
+                "V ${fmt(point.verticalM)}${LocalUnits.current.meter}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -292,7 +300,7 @@ private fun DispersionSection(disp: DispersionView) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Text(
-        text = "Delimiter ${fmt(disp.delimDistM / 1000)} km · Taper ${fmt(disp.taperDistM / 1000)} km",
+        text = "Delimiter ${fmt(disp.delimDistM / 1000)}${LocalUnits.current.kilometer} · Taper ${fmt(disp.taperDistM / 1000)}${LocalUnits.current.kilometer}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -322,8 +330,8 @@ fun SecondarySection(battery: MainBatteryView, adjusted: AdjustedStats) {
         StatGrid(
             listOf(
                 Triple("Configuration", battery.configuration, 1),
-                Triple("Range", statWithBase(battery.rangeM / 1000, adjusted.secondaryRangeM / 1000, "km"), 2),
-                Triple("Reload", statWithBase(battery.reloadS, adjusted.secondaryReloadS, "s"), 3),
+                Triple("Range", statWithBase(battery.rangeM / 1000, adjusted.secondaryRangeM / 1000, LocalUnits.current.kilometer), 2),
+                Triple("Reload", statWithBase(battery.reloadS, adjusted.secondaryReloadS, LocalUnits.current.seconds), 3),
             ),
         )
         battery.shells.forEach { shell ->
@@ -349,11 +357,11 @@ fun TorpedoSection(torpedo: TorpedoView, adjusted: AdjustedStats) {
         StatGrid(
             listOf(
                 Triple("Launchers", torpedo.configuration, 1),
-                Triple("Reload", statWithBase(torpedo.reloadS, adjusted.torpReloadS, "s"), 2),
-                Triple("Rotation", statWithBase(torpedo.rotationDegS, adjusted.torpRotationDegS, "°/s"), 3),
+                Triple("Reload", statWithBase(torpedo.reloadS, adjusted.torpReloadS, LocalUnits.current.seconds), 2),
+                Triple("Rotation", statWithBase(torpedo.rotationDegS, adjusted.torpRotationDegS, " °/s"), 3),
                 Triple(
                     "Turn 180°",
-                    if (torpedo.turnTimeS > 0) "${fmt(torpedo.turnTimeS)} s" else "—",
+                    if (torpedo.turnTimeS > 0) "${fmt(torpedo.turnTimeS)}${LocalUnits.current.seconds}" else "—",
                     4,
                 ),
             ),
@@ -389,10 +397,10 @@ private fun TorpedoDetailCard(torp: TorpedoDetailView) {
             text = buildString {
                 append("DMG ${formatNumber(torp.damage)}")
                 if (torp.alphaDamage > 0) append(" · Alpha ${formatNumber(torp.alphaDamage)}")
-                if (torp.rangeKm > 0) append(" · ${fmt(torp.rangeKm)} km")
-                append(" · ${fmt(torp.speedKt)} kn")
-                if (torp.detectabilityKm > 0) append(" · Detect ${fmt(torp.detectabilityKm)} km")
-                if (torp.reactionTimeS > 0) append(" · Reaction ${fmt(torp.reactionTimeS)} s")
+                if (torp.rangeKm > 0) append(" · ${fmt(torp.rangeKm)}${LocalUnits.current.kilometer}")
+                append(" · ${fmt(torp.speedKt)}${LocalUnits.current.knots}")
+                if (torp.detectabilityKm > 0) append(" · Detect ${fmt(torp.detectabilityKm)}${LocalUnits.current.kilometer}")
+                if (torp.reactionTimeS > 0) append(" · Reaction ${fmt(torp.reactionTimeS)}${LocalUnits.current.seconds}")
                 torp.floodChance?.let { append(" · Flood ${fmt(it)}%") }
             },
             style = MaterialTheme.typography.bodySmall,
@@ -400,8 +408,8 @@ private fun TorpedoDetailCard(torp: TorpedoDetailView) {
         )
         Text(
             text = buildString {
-                torp.armingDistanceM?.let { append("Arming ${fmtInt(it)} m · ") }
-                torp.depthM?.let { append("Depth ${fmt(it, 2)} m · ") }
+                torp.armingDistanceM?.let { append("Arming ${fmtInt(it)}${LocalUnits.current.meter} · ") }
+                torp.depthM?.let { append("Depth ${fmt(it, 2)}${LocalUnits.current.meter} · ") }
                 torp.splashArmorCoeff?.let { append("Splash armor ${fmt(it)} · ") }
                 torp.splashCubeSize?.let { append("Cube ${fmt(it)} · ") }
                 torp.pingDamageCoeff?.let { append("Ping dmg ${fmt(it)}× · ") }
@@ -412,7 +420,7 @@ private fun TorpedoDetailCard(torp: TorpedoDetailView) {
         )
         torp.acousticDetection?.let { acoustic ->
             Text(
-                text = "Acoustic homing: radius ${fmtInt(acoustic.searchRadius)} m · " +
+                text = "Acoustic homing: radius ${fmtInt(acoustic.searchRadius)}${LocalUnits.current.meter} · " +
                     "angle ${fmt(acoustic.searchAngle, 0)}° · yaw ${fmt(acoustic.yawChangeSpeed)}°/s · " +
                     "depth ${fmt(acoustic.maxDepthLevel)}",
                 style = MaterialTheme.typography.bodySmall,
@@ -450,9 +458,9 @@ fun AirDefenseSection(airDefense: AirDefenseStats, adjusted: AdjustedStats) {
             )
             Text(
                 text = "Inner ${bubbles.inner} · Outer ${bubbles.outer} · " +
-                    "${fmt(bubbles.minRange)}-${fmt(bubbles.maxRange)} km · " +
+                    "${fmt(bubbles.minRange)}-${fmt(bubbles.maxRange)}${LocalUnits.current.kilometer} · " +
                     "DMG ${fmtInt(bubbles.damage)} · Hit ${fmt(bubbles.hitChance * 100)}% · " +
-                    "Spawn ${fmt(bubbles.spawnTime)} s",
+                    "Spawn ${fmt(bubbles.spawnTime)}${LocalUnits.current.seconds}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -490,7 +498,7 @@ private fun AuraRow(label: String, aura: AuraInfo, colorIndex: Int) {
                 )
                 Text(
                     text = "DPS ${fmtInt(aura.dps)} · " +
-                        "${fmt(aura.minRange)}-${fmt(aura.maxRange)} km · " +
+                        "${fmt(aura.minRange)}-${fmt(aura.maxRange)}${LocalUnits.current.kilometer} · " +
                         "Hit ${fmt(aura.hitChance * 100)}%",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -498,13 +506,13 @@ private fun AuraRow(label: String, aura: AuraInfo, colorIndex: Int) {
             }
             val details = buildString {
                 if (aura.explosionCount > 0) append("Explosions ${aura.explosionCount} · ")
-                if (aura.shotTravelTime > 0) append("Shot travel ${fmt(aura.shotTravelTime)} s · ")
-                if (aura.shotDelay > 0) append("Shot delay ${fmt(aura.shotDelay)} s · ")
+                if (aura.shotTravelTime > 0) append("Shot travel ${fmt(aura.shotTravelTime)}${LocalUnits.current.seconds} · ")
+                if (aura.shotDelay > 0) append("Shot delay ${fmt(aura.shotDelay)}${LocalUnits.current.seconds} · ")
                 if (aura.damage > 0) append("DMG ${fmtInt(aura.damage)} · ")
                 if (aura.innerBubbleCount > 0 || aura.outerBubbleCount > 0) {
                     append(
                         "Flak ${aura.innerBubbleCount}+${aura.outerBubbleCount} · " +
-                            "R ${fmt(aura.bubbleRadius)} km · ${fmt(aura.bubbleDuration)} s · " +
+                            "R ${fmt(aura.bubbleRadius)}${LocalUnits.current.kilometer} · ${fmt(aura.bubbleDuration)}${LocalUnits.current.seconds} · " +
                             "DMG ${fmtInt(aura.bubbleDamage)} · ",
                     )
                 }
@@ -528,18 +536,18 @@ fun MobilitySection(hull: HullStats, adjusted: AdjustedStats) {
     SectionCard("Mobility") {
         StatGrid(
             listOf(
-                Triple("Speed", statWithBase(hull.mobility.speed, adjusted.speed, "kn"), 1),
-                Triple("Turning radius", "${fmtInt(hull.mobility.turningRadius)} m", 2),
-                Triple("Rudder", statWithBase(hull.mobility.rudderTime, adjusted.rudderTime, "s"), 3),
+                Triple("Speed", statWithBase(hull.mobility.speed, adjusted.speed, LocalUnits.current.knots), 1),
+                Triple("Turning radius", "${fmtInt(hull.mobility.turningRadius)}${LocalUnits.current.meter}", 2),
+                Triple("Rudder", statWithBase(hull.mobility.rudderTime, adjusted.rudderTime, LocalUnits.current.seconds), 3),
             ),
         )
         hull.maneuverability?.let { man ->
             StatGrid(
                 listOf(
-                    Triple("Reverse speed", "${fmt(man.maxReverseSpeed)} kn", 4),
+                    Triple("Reverse speed", "${fmt(man.maxReverseSpeed)}${LocalUnits.current.knots}", 4),
                     Triple(
                         "Dive speed",
-                        man.submarine?.let { "${fmt(it.diveSpeed)} m/s" } ?: "—",
+                        man.submarine?.let { "${fmt(it.diveSpeed)}${LocalUnits.current.meterPerSecond}" } ?: "—",
                         5,
                     ),
                 ),
@@ -554,7 +562,7 @@ fun MobilitySection(hull: HullStats, adjusted: AdjustedStats) {
                 SubmarineModeLine("Periscope", sub.periscopeSpeed, sub.periscopeReverse)
                 SubmarineModeLine("Max depth", sub.maxDepthSpeed, sub.maxDepthReverse)
                 Text(
-                    text = "Diving plane shift: ${fmt(sub.divingPlaneShiftTime)} s",
+                    text = "Diving plane shift: ${fmt(sub.divingPlaneShiftTime)}${LocalUnits.current.seconds}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -580,7 +588,7 @@ fun MobilitySection(hull: HullStats, adjusted: AdjustedStats) {
 @Composable
 private fun SubmarineModeLine(label: String, forward: Double, reverse: Double) {
     Text(
-        text = "$label: ${fmt(forward)} / ${fmt(reverse)} kn",
+        text = "$label: ${fmt(forward)} / ${fmt(reverse)}${LocalUnits.current.knots}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -588,21 +596,22 @@ private fun SubmarineModeLine(label: String, forward: Double, reverse: Double) {
 
 @Composable
 fun ConcealmentSection(hull: HullStats, adjusted: AdjustedStats) {
+    val units = LocalUnits.current
     val visibility = hull.visibility
     SectionCard("Concealment") {
         StatGrid(
             listOf(
-                Triple("Sea", statWithBase(visibility.sea, adjusted.concealmentSea, "km"), 1),
-                Triple("Air", statWithBase(visibility.plane, adjusted.concealmentAir, "km"), 2),
-                Triple("Submarine", "${fmt(visibility.submarine)} km", 3),
+                Triple("Sea", statWithBase(visibility.sea, adjusted.concealmentSea, LocalUnits.current.kilometer), 1),
+                Triple("Air", statWithBase(visibility.plane, adjusted.concealmentAir, LocalUnits.current.kilometer), 2),
+                Triple("Submarine", "${fmt(visibility.submarine)}${LocalUnits.current.kilometer}", 3),
             ),
         )
         hull.concealment?.let { concealment ->
             StatGrid(
                 listOf(
-                    Triple("Fire (sea)", "${fmt(concealment.seaFire)} km", 4),
-                    Triple("Fire (air)", "${fmt(concealment.airFire)} km", 5),
-                    Triple("In smoke", "${fmt(visibility.seaInSmoke)} km", 6),
+                    Triple("Fire (sea)", "${fmt(concealment.seaFire)}${LocalUnits.current.kilometer}", 4),
+                    Triple("Fire (air)", "${fmt(concealment.airFire)}${LocalUnits.current.kilometer}", 5),
+                    Triple("In smoke", "${fmt(visibility.seaInSmoke)}${LocalUnits.current.kilometer}", 6),
                 ),
             )
             if (concealment.periscopeDepth > 0 || concealment.deepWaterDepth > 0) {
@@ -612,8 +621,8 @@ fun ConcealmentSection(hull: HullStats, adjusted: AdjustedStats) {
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "Periscope depth: ${fmt(concealment.periscopeDepth)} km · " +
-                        "Deep water: ${fmt(concealment.deepWaterDepth)} km",
+                    text = "Periscope depth: ${fmt(concealment.periscopeDepth)}${LocalUnits.current.kilometer} · " +
+                        "Deep water: ${fmt(concealment.deepWaterDepth)}${LocalUnits.current.kilometer}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -621,7 +630,7 @@ fun ConcealmentSection(hull: HullStats, adjusted: AdjustedStats) {
             if (concealment.bySubmarineDepth.isNotEmpty()) {
                 Text(
                     text = "By depth: " + concealment.bySubmarineDepth.joinToString(" · ") {
-                        "${it.first.replace('_', ' ')} ${fmt(it.second)} km"
+                        "${it.first.replace('_', ' ')} ${fmt(it.second)}${units.kilometer}"
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -633,14 +642,14 @@ fun ConcealmentSection(hull: HullStats, adjusted: AdjustedStats) {
                         append("Depth coeff: ")
                         append(
                             concealment.underwaterDepthCoeff.joinToString(" · ") {
-                                "${fmt(it.first)} m ×${fmt(it.second)}"
+                                "${fmt(it.first)}${units.meter} ×${fmt(it.second)}"
                             },
                         )
                         if (concealment.underwaterDepthCoeffPlane.isNotEmpty()) {
                             append(" · plane ")
                             append(
                                 concealment.underwaterDepthCoeffPlane.joinToString(" · ") {
-                                    "${fmt(it.first)} m ×${fmt(it.second)}"
+                                    "${fmt(it.first)}${units.meter} ×${fmt(it.second)}"
                                 },
                             )
                         }
@@ -664,9 +673,9 @@ fun ConcealmentSection(hull: HullStats, adjusted: AdjustedStats) {
             )
         } ?: StatGrid(
             listOf(
-                Triple("In smoke", "${fmt(visibility.seaInSmoke)} km", 4),
-                Triple("Fire (sea)", "${fmt(visibility.seaFireCoeff)} km", 5),
-                Triple("Fire (air)", "${fmt(visibility.planeFireCoeff)} km", 6),
+                Triple("In smoke", "${fmt(visibility.seaInSmoke)}${LocalUnits.current.kilometer}", 4),
+                Triple("Fire (sea)", "${fmt(visibility.seaFireCoeff)}${LocalUnits.current.kilometer}", 5),
+                Triple("Fire (air)", "${fmt(visibility.planeFireCoeff)}${LocalUnits.current.kilometer}", 6),
             ),
         )
     }
@@ -682,8 +691,8 @@ fun BurstSection(burst: BurstInfo) {
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "${burst.shotsCount} shells per salvo · reload ${fmt(burst.burstReloadTime)} s · " +
-                "full reload ${fmt(burst.fullReloadTime)} s · intensity ${fmt(burst.shotIntensity)}",
+            text = "${burst.shotsCount} shells per salvo · reload ${fmt(burst.burstReloadTime)}${LocalUnits.current.seconds} · " +
+                "full reload ${fmt(burst.fullReloadTime)}${LocalUnits.current.seconds} · intensity ${fmt(burst.shotIntensity)}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -703,24 +712,24 @@ fun AirSupportSection(airSupport: AirstrikeView, plane: AircraftDetail?) {
         StatGrid(
             listOf(
                 Triple("Charges", airSupport.charges.toString(), 1),
-                Triple("Reload", "${fmt(airSupport.reloadS)} s", 2),
-                Triple("Range", "${fmt(airSupport.rangeKm)} km", 3),
+                Triple("Reload", "${fmt(airSupport.reloadS)}${LocalUnits.current.seconds}", 2),
+                Triple("Range", "${fmt(airSupport.rangeKm)}${LocalUnits.current.kilometer}", 3),
                 Triple("Auto", if (airSupport.autoUsage) "Yes" else "No", 4),
             ),
         )
         StatGrid(
             listOf(
-                Triple("Min dist", "${fmtInt(airSupport.minDistM)} m", 1),
-                Triple("Max dist", "${fmtInt(airSupport.maxDistM)} m", 2),
-                Triple("Flight dist", "${fmtInt(airSupport.maxPlaneFlightDistM)} m", 3),
+                Triple("Min dist", "${fmtInt(airSupport.minDistM)}${LocalUnits.current.meter}", 1),
+                Triple("Max dist", "${fmtInt(airSupport.maxDistM)}${LocalUnits.current.meter}", 2),
+                Triple("Flight dist", "${fmtInt(airSupport.maxPlaneFlightDistM)}${LocalUnits.current.meter}", 3),
                 Triple("Climb", "${fmt(airSupport.climbAngleDeg)}°", 4),
             ),
         )
         StatGrid(
             listOf(
-                Triple("Fly away", "${fmt(airSupport.flyAwayTimeS)} s", 1),
-                Triple("Between shots", "${fmt(airSupport.timeBetweenShotsS)} s", 2),
-                Triple("Drop time", "${fmt(airSupport.timeFromHeavenS)} s", 3),
+                Triple("Fly away", "${fmt(airSupport.flyAwayTimeS)}${LocalUnits.current.seconds}", 1),
+                Triple("Between shots", "${fmt(airSupport.timeBetweenShotsS)}${LocalUnits.current.seconds}", 2),
+                Triple("Drop time", "${fmt(airSupport.timeFromHeavenS)}${LocalUnits.current.seconds}", 3),
             ),
         )
         plane?.let { aircraft ->
@@ -729,7 +738,7 @@ fun AirSupportSection(airSupport: AirstrikeView, plane: AircraftDetail?) {
                     append(aircraft.name)
                     append(" · HP ${fmtInt(aircraft.health)}")
                     append(" · ${aircraft.totalPlanes} planes")
-                    append(" · ${fmt(aircraft.speed)} kn")
+                    append(" · ${fmt(aircraft.speed)}${LocalUnits.current.knots}")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -768,14 +777,14 @@ fun AircraftSection(slot: AircraftSlotView) {
         )
         StatGrid(
             listOf(
-                Triple("Speed", statWithBase(aircraft.speed, aircraft.adjustedSpeed, "kn"), 4),
-                Triple("Visibility", "${fmt(aircraft.visibility)} km", 5),
+                Triple("Speed", statWithBase(aircraft.speed, aircraft.adjustedSpeed, LocalUnits.current.knots), 4),
+                Triple("Visibility", "${fmt(aircraft.visibility)}${LocalUnits.current.kilometer}", 5),
                 Triple(
                     "Aim rate",
                     aircraft.aimingRateMovingPercent?.let { "${fmt(it, 1)}%/s" } ?: "—",
                     0,
                 ),
-                Triple("Restore", aircraft.restoreTime?.let { "${fmt(it)} s" } ?: "—", 1),
+                Triple("Restore", aircraft.restoreTime?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—", 1),
             ),
         )
         StatGrid(
@@ -785,8 +794,8 @@ fun AircraftSection(slot: AircraftSlotView) {
                     "${aircraft.attacker ?: 1} × ${aircraft.attackCount ?: 1}",
                     4,
                 ),
-                Triple("Cooldown", aircraft.attackCooldown?.let { "${fmt(it)} s" } ?: "—", 5),
-                Triple("Interval", aircraft.attackInterval?.let { "${fmt(it)} s" } ?: "—", 0),
+                Triple("Cooldown", aircraft.attackCooldown?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—", 5),
+                Triple("Interval", aircraft.attackInterval?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—", 0),
                 Triple("Hangar", aircraft.maxAircraft?.toString() ?: "—", 1),
             ),
         )
@@ -799,7 +808,7 @@ fun AircraftSection(slot: AircraftSlotView) {
         )
         StatGrid(
             listOf(
-                Triple("Aim time", aircraft.aimingTime?.let { "${fmt(it)} s" } ?: "—", 0),
+                Triple("Aim time", aircraft.aimingTime?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—", 0),
                 Triple("Aim speed", aircraft.aimingSpeedLimits.ifBlank { "—" }, 1),
                 Triple("Aim turn", aircraft.aimingTurnSpeedLimit?.let { fmt(it) } ?: "—", 2),
                 Triple(
@@ -811,12 +820,12 @@ fun AircraftSection(slot: AircraftSlotView) {
         )
         StatGrid(
             listOf(
-                Triple("Prep time", aircraft.preparationTime?.let { "${fmt(it)} s" } ?: "—", 4),
+                Triple("Prep time", aircraft.preparationTime?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—", 4),
                 Triple("Prep speed", aircraft.preparationSpeedLimits.ifBlank { "—" }, 5),
                 Triple("Prep turn", aircraft.preparationTurnSpeedLimit?.let { fmt(it) } ?: "—", 0),
                 Triple(
                     "Drop point",
-                    aircraft.bombingDropPointTime?.let { "${fmt(it)} s" } ?: "—",
+                    aircraft.bombingDropPointTime?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—",
                     1,
                 ),
             ),
@@ -831,7 +840,7 @@ fun AircraftSection(slot: AircraftSlotView) {
         )
         StatGrid(
             listOf(
-                Triple("JATO", aircraft.jatoDuration?.let { "${fmt(it)} s" } ?: "—", 0),
+                Triple("JATO", aircraft.jatoDuration?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—", 0),
                 Triple("JATO spd", aircraft.jatoSpeedMultiplier?.let { "×${fmt(it)}" } ?: "—", 1),
                 Triple("Boost", aircraft.maxForsageAmount?.let { fmt(it) } ?: "—", 2),
                 Triple("Boost regen", aircraft.forsageRegeneration?.let { fmt(it) } ?: "—", 3),
@@ -847,10 +856,10 @@ fun AircraftSection(slot: AircraftSlotView) {
                 ),
                 Triple(
                     "Post-attack inv",
-                    aircraft.postAttackInvulnerabilityDuration?.let { "${fmt(it)} s" } ?: "—",
+                    aircraft.postAttackInvulnerabilityDuration?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—",
                     0,
                 ),
-                Triple("Bomb fall", aircraft.bombFallingTime?.let { "${fmt(it)} s" } ?: "—", 1),
+                Triple("Bomb fall", aircraft.bombFallingTime?.let { "${fmt(it)}${LocalUnits.current.seconds}" } ?: "—", 1),
             ),
         )
         if (aircraft.planeConsumables.isNotEmpty()) {
@@ -870,7 +879,7 @@ fun AircraftSection(slot: AircraftSlotView) {
                     append(" · DMG ${formatNumber(bomb.damage)}")
                     bomb.burnChance?.let { append(" · Fire ${fmt(it * 100)}%") }
                     bomb.floodChance?.let { append(" · Flood ${fmt(it)}%") }
-                    bomb.penHe?.let { append(" · Pen ${fmtInt(it)} mm") }
+                    bomb.penHe?.let { append(" · Pen ${fmtInt(it)}${LocalUnits.current.millimeter}") }
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -884,10 +893,10 @@ fun PingerSection(pinger: PingerStats, adjusted: AdjustedStats) {
     SectionCard("Sonar") {
         StatGrid(
             listOf(
-                Triple("Range", "${fmt(pinger.range / 1000)} km", 1),
-                Triple("Reload", statWithBase(pinger.reload, adjusted.pingerReloadS, "s"), 2),
-                Triple("Speed", statWithBase(pinger.speed, adjusted.pingerSpeed, "m/s"), 3),
-                Triple("Duration", "${fmt(pinger.lifeTime1)} | ${fmt(pinger.lifeTime2)} s", 4),
+                Triple("Range", "${fmt(pinger.range / 1000)}${LocalUnits.current.kilometer}", 1),
+                Triple("Reload", statWithBase(pinger.reload, adjusted.pingerReloadS, LocalUnits.current.seconds), 2),
+                Triple("Speed", statWithBase(pinger.speed, adjusted.pingerSpeed, LocalUnits.current.meterPerSecond), 3),
+                Triple("Duration", "${fmt(pinger.lifeTime1)} | ${fmt(pinger.lifeTime2)}${LocalUnits.current.seconds}", 4),
             ),
         )
     }
@@ -906,7 +915,7 @@ fun DepthChargeSection(depth: DepthChargeView) {
         }
         StatGrid(
             listOf(
-                Triple("Reload", "${fmt(depth.reloadS)} s", 1),
+                Triple("Reload", "${fmt(depth.reloadS)}${LocalUnits.current.seconds}", 1),
                 Triple("Config", "${depth.groups} × ${depth.bombs}", 2),
                 Triple("Damage", formatNumber(depth.damage), 3),
                 Triple("Fire", "${fmt(depth.fireChance)}%", 4),
@@ -918,7 +927,7 @@ fun DepthChargeSection(depth: DepthChargeView) {
                 listOf(
                     Triple("Shots/pack", packs.shots.toString(), 1),
                     Triple("Max packs", packs.maxPacks.toString(), 2),
-                    Triple("Shot delay", "${fmt(packs.shotDelayS)} s", 3),
+                    Triple("Shot delay", "${fmt(packs.shotDelayS)}${LocalUnits.current.seconds}", 3),
                     Triple("Zone width", fmt(packs.centerZoneWidthPart), 4),
                 ),
             )
@@ -942,13 +951,13 @@ fun DepthChargeSection(depth: DepthChargeView) {
         Text(
             text = buildString {
                 depth.sinkSpeed?.let { append("Sink speed (raw) ${fmt(it)} · ") }
-                depth.detonationDepthM?.let { append("Detonation depth ${fmt(it)} m · ") }
-                depth.splashRadiusM?.let { append("Splash radius ${fmt(it)} m · ") }
+                depth.detonationDepthM?.let { append("Detonation depth ${fmt(it)}${LocalUnits.current.meter} · ") }
+                depth.splashRadiusM?.let { append("Splash radius ${fmt(it)}${LocalUnits.current.meter} · ") }
                 depth.alertDist?.let { append("Alert ${fmt(it)} · ") }
                 depth.explosivePower?.let { append("Explosive power ${fmt(it)} · ") }
                 depth.integralPower?.let { append("Integral power ${fmt(it)} · ") }
                 depth.fallDistance?.let { append("Fall dist ${fmt(it)} · ") }
-                depth.fallTime?.let { append("Fall time ${fmt(it)} s · ") }
+                depth.fallTime?.let { append("Fall time ${fmt(it)}${LocalUnits.current.seconds} · ") }
             }.trimEnd(' ', '·'),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1004,10 +1013,10 @@ fun SpecialSection(special: SpecialAbilityView) {
         )
         StatGrid(
             listOf(
-                Triple("Duration", "${fmt(special.durationS)} s", 1),
+                Triple("Duration", "${fmt(special.durationS)}${LocalUnits.current.seconds}", 1),
                 Triple(
                     "Preparation",
-                    if (special.preparationS > 0) "${fmt(special.preparationS)} s" else "—",
+                    if (special.preparationS > 0) "${fmt(special.preparationS)}${LocalUnits.current.seconds}" else "—",
                     2,
                 ),
                 Triple("Required", special.requiredCount.toString(), 3),
@@ -1030,9 +1039,9 @@ fun SpecialSection(special: SpecialAbilityView) {
         }
         if (special.inactivityDelayS > 0 && special.progressLossPerInterval > 0) {
             Text(
-                text = "Inactive ${fmt(special.inactivityDelayS)} s · lose " +
+                text = "Inactive ${fmt(special.inactivityDelayS)}${LocalUnits.current.seconds} · lose " +
                     "${fmt(special.progressLossPerInterval)} every " +
-                    "${fmt(special.progressLossIntervalS)} s",
+                    "${fmt(special.progressLossIntervalS)}${LocalUnits.current.seconds}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1090,21 +1099,21 @@ private fun ShellCard(shell: ShellView, curves: List<PenCurveView>, dpm: ShellDp
             text = buildString {
                 append("DMG ${formatNumber(shell.damage)}")
                 if (shell.burnChance != null) append(" · Fire ${fmt(shell.burnChance!! * 100)}%")
-                if (shell.penHe != null) append(" · HE pen ${fmtInt(shell.penHe!!)} mm")
-                if (shell.penSap != null) append(" · SAP pen ${fmtInt(shell.penSap!!)} mm")
-                append(" · ${fmtInt(shell.weight)} kg · ${fmtInt(shell.speed)} m/s")
+                if (shell.penHe != null) append(" · HE pen ${fmtInt(shell.penHe!!)}${LocalUnits.current.millimeter}")
+                if (shell.penSap != null) append(" · SAP pen ${fmtInt(shell.penSap!!)}${LocalUnits.current.millimeter}")
+                append(" · ${fmtInt(shell.weight)}${LocalUnits.current.kilogram} · ${fmtInt(shell.speed)}${LocalUnits.current.meterPerSecond}")
                 dpm?.let {
                     append(" · DPM ${formatNumber(it.dpm)}")
                     append(" · Salvo ${formatNumber(it.salvoDamage)} dmg")
                     if (it.potentialFpm > 0) append(" · FPM ${fmt(it.potentialFpm, 2)}")
-                    if (it.salvoWeightKg > 0) append(" · ${fmtInt(it.salvoWeightKg)} kg")
+                    if (it.salvoWeightKg > 0) append(" · ${fmtInt(it.salvoWeightKg)}${LocalUnits.current.kilogram}")
                 }
                 shell.overmatch?.let {
-                    append(" · Overmatch ${fmtInt(shell.calibreMm / it)} mm")
+                    append(" · Overmatch ${fmtInt(shell.calibreMm / it)}${LocalUnits.current.millimeter}")
                 }
                 shell.ricochetAngle?.let { append(" · Ricochet ${fmt(it)}°") }
                 shell.ricochetAlways?.let { append(" · Always bounces ${fmt(it)}°") }
-                shell.fuseTime?.let { append(" · Fuse ${String.format(Locale.US, "%.3f", it)} s") }
+                shell.fuseTime?.let { append(" · Fuse ${String.format(Locale.US, "%.3f", it)}${LocalUnits.current.seconds}") }
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1114,13 +1123,13 @@ private fun ShellCard(shell: ShellView, curves: List<PenCurveView>, dpm: ShellDp
                 shell.airDrag?.let { append("Air drag ${fmt(it)} · ") }
                 shell.waterDrag?.let { append("Water drag ${fmt(it)} · ") }
                 shell.krupp?.let { append("Krupp ${fmtInt(it)} · ") }
-                shell.armingThreshold?.let { append("Arming ${fmtInt(it)} mm · ") }
+                shell.armingThreshold?.let { append("Arming ${fmtInt(it)}${LocalUnits.current.millimeter} · ") }
                 shell.shellCap?.let { append(if (it) "Shell cap yes · " else "Shell cap no · ") }
                 shell.capNormalizeMaxAngle?.let { append("Cap angle ${fmt(it)}° · ") }
                 shell.underwaterDistFactor?.let { append("UW dist ×${fmt(it)} · ") }
                 shell.underwaterPenetrationFactor?.let { append("UW pen ×${fmt(it)} · ") }
-                shell.explosionRadius?.let { append("Blast radius ${fmt(it)} m · ") }
-                shell.splashRadius?.let { append("Splash radius ${fmt(it)} m · ") }
+                shell.explosionRadius?.let { append("Blast radius ${fmt(it)}${LocalUnits.current.meter} · ") }
+                shell.splashRadius?.let { append("Splash radius ${fmt(it)}${LocalUnits.current.meter} · ") }
                 if (shell.distParams.isNotEmpty()) {
                     append("Dist params [${shell.distParams.joinToString(", ") { fmt(it) }}] · ")
                 }
@@ -1147,11 +1156,11 @@ private fun TorpedoShellCard(shell: ShellView) {
         Text(
             text = buildString {
                 append("DMG ${formatNumber(actualDamage)}")
-                if (rangeKm > 0) append(" · ${fmt(rangeKm)} km")
-                append(" · ${fmt(shell.speed)}-${fmt((shell.speed + 5) * 1.05)} kn")
-                shell.visibility?.let { append(" · Detect ${fmt(it)} km") }
+                if (rangeKm > 0) append(" · ${fmt(rangeKm)}${LocalUnits.current.kilometer}")
+                append(" · ${fmt(shell.speed)}-${fmt((shell.speed + 5) * 1.05)}${LocalUnits.current.knots}")
+                shell.visibility?.let { append(" · Detect ${fmt(it)}${LocalUnits.current.kilometer}") }
                 shell.floodChance?.let { append(" · Flood ${fmt(it)}%") }
-                if (reaction > 0) append(" · Reaction ${fmt(reaction)} s")
+                if (reaction > 0) append(" · Reaction ${fmt(reaction)}${LocalUnits.current.seconds}")
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

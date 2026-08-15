@@ -44,7 +44,7 @@ pub use components::{
     FireControlStats, GunStats, HullStats, MobilityStats, PingerStats, SpecialStats,
     SubmarineBatteryStats, TorpedoStats, VisibilityStats, WeaponInfo,
 };
-pub use lang::{parse_lang, LangMap};
+pub use lang::{parse_lang, LangMap, LocalizedUnits};
 pub use local_ship::{
     build_local_ship_wiki, LocalShipWiki, MainBatteryView, ModuleOptionView, ModuleSlotView,
     PenCurveView, ShellView, TorpedoView,

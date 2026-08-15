@@ -32,6 +32,7 @@ import com.wowsinfo.libwowsinfo.PenetrationPoint
 import com.wowsinfo.libwowsinfo.ui.chartColor
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.wowsinfo.libwowsinfo.ui.LocalUnits
 
 private fun fmt(value: Double): String = String.format(Locale.US, "%.1f", value)
 
@@ -45,6 +46,7 @@ fun WikiPenetrationDialog(
     curves: List<PenCurveView>,
     onDismiss: () -> Unit,
 ) {
+    val units = LocalUnits.current
     val curve = curves.firstOrNull() ?: run {
         onDismiss()
         return
@@ -68,7 +70,7 @@ fun WikiPenetrationDialog(
                 LineChart(
                     points = curve.points,
                     series = listOf(Triple("Flight time", chartColor(3), { it.timeS })),
-                    unit = "s",
+                    unit = units.seconds,
                     height = 160,
                 )
                 LineChart(
@@ -86,11 +88,11 @@ fun WikiPenetrationDialog(
                     )
                     Text(
                         text = buildString {
-                            append("Range ${fmt(sliderRangeM / 1000)} km · ")
+                            append("Range ${fmt(sliderRangeM / 1000)}${LocalUnits.current.kilometer} · ")
                             append("Pen ${sample.rawPenMm.roundToInt()} / ")
                             append("${sample.beltPenMm.roundToInt()} / ")
-                            append("${sample.deckPenMm.roundToInt()} mm · ")
-                            append("Flight ${fmt(sample.timeS)} s · ")
+                            append("${sample.deckPenMm.roundToInt()}${LocalUnits.current.millimeter} · ")
+                            append("Flight ${fmt(sample.timeS)}${LocalUnits.current.seconds} · ")
                             append("Angle ${fmt(sample.impactAngleDeg)}°")
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -159,6 +161,7 @@ private fun LineChart(
     unit: String,
     height: Int,
 ) {
+    val units = LocalUnits.current
     if (points.size < 2) {
         Text("Not enough data", style = MaterialTheme.typography.bodySmall)
         return
@@ -208,7 +211,7 @@ private fun LineChart(
             },
         )
         drawContext.canvas.nativeCanvas.drawText(
-            "${fmt(maxRange / 1000)} km",
+            "${fmt(maxRange / 1000)}${units.kilometer}",
             right - 34f * density,
             bottom + 16f,
             android.graphics.Paint().apply {
@@ -217,7 +220,7 @@ private fun LineChart(
             },
         )
         drawContext.canvas.nativeCanvas.drawText(
-            "${fmt(maxY)} $unit",
+            "${fmt(maxY)}$unit",
             4f,
             top + 10f,
             android.graphics.Paint().apply {

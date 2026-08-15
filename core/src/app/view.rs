@@ -55,6 +55,9 @@ pub struct ViewModel {
     /// True once the bundled game data has been parsed successfully.
     #[serde(default)]
     pub local_data_ready: bool,
+    /// Localised unit suffixes for the current language (`IDS_KNOT`, ...).
+    #[serde(default)]
+    pub units: wiki::LocalizedUnits,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Facet, PartialEq)]

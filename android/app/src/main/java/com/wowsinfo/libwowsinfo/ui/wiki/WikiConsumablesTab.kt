@@ -25,6 +25,7 @@ import com.wowsinfo.libwowsinfo.ConsumableView
 import com.wowsinfo.libwowsinfo.LocalFlagEntry
 import com.wowsinfo.libwowsinfo.ui.chartColor
 import java.util.Locale
+import com.wowsinfo.libwowsinfo.ui.LocalUnits
 
 /** Consumable + signal-flag lists from the bundled game data (RN parity). */
 @Composable
@@ -111,11 +112,11 @@ fun WikiConsumablesTab(consumables: List<ConsumableView>, flags: List<LocalFlagE
                 Text(
                     text = buildString {
                         append(consumable.type)
-                        if (consumable.workS > 0) append(" · ${fmt(consumable.workS)} s")
+                        if (consumable.workS > 0) append(" · ${fmt(consumable.workS)}${LocalUnits.current.seconds}")
                         if (consumable.preparationS > 0) {
-                            append(" · prep ${fmt(consumable.preparationS)} s")
+                            append(" · prep ${fmt(consumable.preparationS)}${LocalUnits.current.seconds}")
                         }
-                        if (consumable.reloadS > 0) append(" · reload ${fmt(consumable.reloadS)} s")
+                        if (consumable.reloadS > 0) append(" · reload ${fmt(consumable.reloadS)}${LocalUnits.current.seconds}")
                         if (consumable.charges != -1L) append(" · ${consumable.charges}x")
                     },
                     style = MaterialTheme.typography.bodySmall,

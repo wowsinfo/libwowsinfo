@@ -93,6 +93,7 @@ impl AppTrait for App {
             local_achievements: model.local_achievements.clone(),
             local_upgrades_wiki: model.local_upgrades_wiki.clone(),
             local_data_ready: model.local_data.is_some(),
+            units: wiki::LocalizedUnits::from_lang(&model.local_lang),
         }
     }
 }

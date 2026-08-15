@@ -40,21 +40,25 @@ class PlayerActivity : ComponentActivity() {
                             core.update(Event.SelectPlayer(accountId))
                         }
                     }
-                    PlayerScreen(
-                        core = core,
-                        viewModel = viewModel,
-                        onBack = { finish() },
-                        onShipClick = { ship ->
-                            startActivity(
-                                Intent(this, ShipDetailActivity::class.java)
-                                    .putExtra(
-                                        ShipDetailActivity.EXTRA_SHIP_ID,
-                                        ship.shipId.toString(),
-                                    ),
-                            )
-                        },
-                        modifier = Modifier.safeDrawingPadding(),
-                    )
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        com.wowsinfo.libwowsinfo.ui.LocalUnits provides viewModel.units,
+                    ) {
+                        PlayerScreen(
+                            core = core,
+                            viewModel = viewModel,
+                            onBack = { finish() },
+                            onShipClick = { ship ->
+                                startActivity(
+                                    Intent(this, ShipDetailActivity::class.java)
+                                        .putExtra(
+                                            ShipDetailActivity.EXTRA_SHIP_ID,
+                                            ship.shipId.toString(),
+                                        ),
+                                )
+                            },
+                            modifier = Modifier.safeDrawingPadding(),
+                        )
+                    }
                 }
             }
         }

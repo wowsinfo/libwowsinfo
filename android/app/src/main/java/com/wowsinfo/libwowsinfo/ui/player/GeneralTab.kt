@@ -41,6 +41,7 @@ import com.wowsinfo.libwowsinfo.ui.formatNumber
 import com.wowsinfo.libwowsinfo.ui.formatPercent
 import com.wowsinfo.libwowsinfo.ui.formatRating
 import com.wowsinfo.libwowsinfo.ui.parseRatingColor
+import com.wowsinfo.libwowsinfo.ui.LocalUnits
 
 enum class StatMode(val label: String) {
     PvP("PvP"),
@@ -103,6 +104,7 @@ private fun ClanCard(clan: com.wowsinfo.libwowsinfo.ClanInfo) {
 
 @Composable
 private fun PlayerHeader(player: PlayerView) {
+    val units = LocalUnits.current
     val ratingColor = remember(player.ratingColour) { parseRatingColor(player.ratingColour) }
     val displayName =
         if (player.clanTag.isNotEmpty()) {
@@ -154,7 +156,7 @@ private fun PlayerHeader(player: PlayerView) {
             )
             Stat(
                 "Distance",
-                "${formatNumber(player.statistics.distance)} km",
+                "${formatNumber(player.statistics.distance)}${units.kilometer}",
                 modifier = Modifier.weight(1f),
             )
         }
