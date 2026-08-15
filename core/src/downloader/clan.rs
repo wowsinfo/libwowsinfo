@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value};
 
-use super::guard;
+use super::guard::guard;
 use crate::models::{ClanInfo, ClanMember, ClanSearchResult};
 
 /// Clan id from `/wows/clans/accountinfo/` (`clan.id`).

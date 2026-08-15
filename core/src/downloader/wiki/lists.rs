@@ -1,0 +1,196 @@
+//! Wiki list parsers (collections, cards, maps, consumables, skills).
+
+use std::collections::HashMap;
+
+use serde_json::{Map, Value};
+
+use super::helper::parse_wiki_map;
+use super::super::guard::guard;
+use crate::models::{CollectionCard, CommanderSkill, Consumable, ConsumableProfile, Perk, WikiCollection, WikiMap};
+
+
+/// Parse one page of `/wows/encyclopedia/collections/`.
+#[must_use]
+pub fn parse_collections(json: &Value) -> HashMap<u64, WikiCollection> {
+    parse_wiki_map(json, "collection_id")
+}
+
+/// Parse one page of `/wows/encyclopedia/collectioncards/`.
+#[must_use]
+pub fn parse_collection_cards(json: &Value) -> HashMap<u64, CollectionCard> {
+    let empty = Value::Object(Map::new());
+    let data = guard(json, "data", &empty);
+    let mut out = HashMap::new();
+    if let Some(map) = data.as_object() {
+        for (key, value) in map {
+            let Some(id) = value
+                .get("card_id")
+                .and_then(Value::as_u64)
+                .or_else(|| key.parse().ok())
+            else {
+                continue;
+            };
+            let str_field = |name: &str| {
+                value
+                    .get(name)
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string()
+            };
+            let image = value
+                .get("images")
+                .and_then(|images| images.get("small"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            out.insert(
+                id,
+                CollectionCard {
+                    card_id: id,
+                    collection_id: value
+                        .get("collection_id")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0),
+                    name: str_field("name"),
+                    description: str_field("description"),
+                    image,
+                },
+            );
+        }
+    }
+    out
+}
+
+/// Parse one page of `/wows/encyclopedia/battlearenas/`.
+#[must_use]
+pub fn parse_maps(json: &Value) -> HashMap<u64, WikiMap> {
+    parse_wiki_map(json, "arena_id")
+}
+
+/// Parse one page of `/wows/encyclopedia/consumables/`. The `profile` field is
+/// a map of profile-id -> description, flattened to a list.
+#[must_use]
+pub fn parse_consumables(json: &Value) -> HashMap<u64, Consumable> {
+    let empty = Value::Object(Map::new());
+    let data = guard(json, "data", &empty);
+    let mut out = HashMap::new();
+    if let Some(map) = data.as_object() {
+        for (key, value) in map {
+            let Some(id) = value
+                .get("consumable_id")
+                .and_then(Value::as_u64)
+                .or_else(|| key.parse().ok())
+            else {
+                continue;
+            };
+            let profile = value
+                .get("profile")
+                .and_then(Value::as_object)
+                .map(|profiles| {
+                    profiles
+                        .values()
+                        .filter_map(|p| p.get("description"))
+                        .filter_map(Value::as_str)
+                        .map(|description| ConsumableProfile {
+                            description: description.to_string(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let str_field = |key: &str| {
+                value
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string()
+            };
+            out.insert(
+                id,
+                Consumable {
+                    consumable_id: id,
+                    name: str_field("name"),
+                    description: str_field("description"),
+                    image: str_field("image"),
+                    r#type: str_field("type"),
+                    price_credit: value
+                        .get("price_credit")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0),
+                    price_gold: value
+                        .get("price_gold")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0),
+                    profile,
+                },
+            );
+        }
+    }
+    out
+}
+
+/// Parse one page of `/wows/encyclopedia/crewskills/`.
+#[must_use]
+pub fn parse_commander_skills(json: &Value) -> HashMap<u64, CommanderSkill> {
+    let empty = Value::Object(Map::new());
+    let data = guard(json, "data", &empty);
+    let mut out = HashMap::new();
+    if let Some(map) = data.as_object() {
+        for (key, value) in map {
+            let Some(id) = key.parse::<u64>().ok() else {
+                continue;
+            };
+            let str_field = |name: &str| {
+                value
+                    .get(name)
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string()
+            };
+            // The skill's tier and perks are per ship class under
+            // `customization`; use the highest tier and dedupe the perks.
+            let mut tier = 0i64;
+            let mut perks: Vec<Perk> = Vec::new();
+            if let Some(classes) = value.get("customization").and_then(Value::as_object) {
+                for class in classes.values() {
+                    if let Some(t) = class.get("tier").and_then(Value::as_i64) {
+                        tier = tier.max(t);
+                    }
+                    if let Some(list) = class.get("perks").and_then(Value::as_array) {
+                        for perk in list {
+                            let perk_id = perk.get("perk_id").and_then(Value::as_u64).unwrap_or(0);
+                            if !perks.iter().any(|p| p.perk_id == perk_id) {
+                                perks.push(Perk {
+                                    perk_id,
+                                    description: perk
+                                        .get("description")
+                                        .and_then(Value::as_str)
+                                        .unwrap_or("")
+                                        .to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            let description = perks
+                .iter()
+                .map(|perk| perk.description.clone())
+                .collect::<Vec<_>>()
+                .join("\n");
+            out.insert(
+                id,
+                CommanderSkill {
+                    skill_id: id,
+                    name: str_field("name"),
+                    description,
+                    icon: str_field("icon"),
+                    tier,
+                    type_id: value.get("type_id").and_then(Value::as_i64).unwrap_or(0),
+                    type_name: str_field("type_name"),
+                    perks,
+                },
+            );
+        }
+    }
+    out
+}

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use serde_json::{Map, Value};
 
-use super::guard;
+use super::guard::guard;
 use crate::models::{RankPlayerInfo, RankSeason, RankShipStat};
 
 /// Parse `/wows/seasons/accountinfo/` into typed rank data.
