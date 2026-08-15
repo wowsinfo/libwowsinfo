@@ -8,7 +8,7 @@ use super::super::guard::guard;
 
 /// Merge one paginated wiki page (`data: {<id>: entry}`) into a map keyed by
 /// the entry's own id field.
-fn parse_wiki_map<T: serde::de::DeserializeOwned>(
+pub(super) fn parse_wiki_map<T: serde::de::DeserializeOwned>(
     json: &Value,
     id_field: &str,
 ) -> HashMap<u64, T> {
