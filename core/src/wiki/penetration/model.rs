@@ -54,8 +54,8 @@ impl BallisticShell {
 }
 
 pub(super) struct ShellParams {
-    k: f64,
-    p_ppc: f64,
+    pub(super) k: f64,
+    pub(super) p_ppc: f64,
 }
 
 /// One sample of the penetration-over-range chart.
