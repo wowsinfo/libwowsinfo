@@ -9,6 +9,7 @@
 mod build;
 mod helpers;
 mod slots;
+#[cfg(test)]
 mod tests;
 mod types;
 

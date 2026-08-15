@@ -18,8 +18,8 @@ pub(crate) fn on_clan_loaded(model: &mut Model, outcome: HttpOutcome) -> Command
     }
     // Full clan info needs the clan id from the account lookup, mirroring the
     // app's tag-first-then-info flow.
-    if model.clan.is_none() {
-        if let (Some(clan_id), Some(config)) = (model.clan_id, model.config.clone()) {
+    if model.clan.is_none()
+        && let (Some(clan_id), Some(config)) = (model.clan_id, model.config.clone()) {
             let key = api_key(&config);
             if !key.is_empty() {
                 commands.push(
@@ -30,7 +30,6 @@ pub(crate) fn on_clan_loaded(model: &mut Model, outcome: HttpOutcome) -> Command
                 );
             }
         }
-    }
     commands.push(try_assemble(model));
     Command::all(commands)
 }
@@ -81,8 +80,7 @@ pub(crate) fn on_clan_selected_loaded(model: &mut Model, outcome: HttpOutcome) -
                         first
                             .get("clan_id")
                             .and_then(serde_json::Value::as_u64)
-                            .map(|id| downloader::parse_clan_info(&json, id))
-                            .flatten()
+                            .and_then(|id| downloader::parse_clan_info(&json, id))
                     })
             });
             if let Some(clan) = parsed {

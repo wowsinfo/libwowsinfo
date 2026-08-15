@@ -102,15 +102,14 @@ pub(super) fn main_battery_view(
     let mut shells = shells_from_weapons(lang, data, &guns.guns);
     if let Some(burst) = &guns.burst {
         for key in &burst.secondary_ammo {
-            if let Some(projectile) = data.projectiles.get(key) {
-                if !shells.iter().any(|shell| shell.key == *key) {
+            if let Some(projectile) = data.projectiles.get(key)
+                && !shells.iter().any(|shell| shell.key == *key) {
                     shells.push(ShellView::from_projectile(lang, projectile));
                 }
-            }
         }
     }
     if shells.is_empty() {
-        shells = shells_from_weapons(lang, data, &[first.clone()]);
+        shells = shells_from_weapons(lang, data, std::slice::from_ref(&first));
     }
     let battery = guns.battery.as_ref();
     let barrels = battery.map_or_else(

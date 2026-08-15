@@ -1,6 +1,5 @@
 //! Torpedo (Constellation) real-data tests.
 
-use serde_json::json;
 
 use super::super::*;
 

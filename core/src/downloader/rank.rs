@@ -93,7 +93,7 @@ pub fn parse_rank_ship_stats(json: &Value, account_id: u64) -> Vec<RankShipStat>
     };
     entries
         .into_iter()
-        .filter_map(|entry| parse_rank_ship_entry(entry))
+        .filter_map(parse_rank_ship_entry)
         .collect()
 }
 

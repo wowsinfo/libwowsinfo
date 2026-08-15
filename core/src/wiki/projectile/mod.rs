@@ -7,6 +7,7 @@
 
 mod helpers;
 mod parse;
+#[cfg(test)]
 mod tests;
 mod types;
 

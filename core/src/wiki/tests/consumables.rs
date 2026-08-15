@@ -1,6 +1,5 @@
 //! Consumable alter-variant real-data tests.
 
-use serde_json::json;
 
 use super::super::*;
 

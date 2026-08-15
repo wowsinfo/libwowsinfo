@@ -1,12 +1,9 @@
 //! Rank tests.
 
-use std::collections::HashMap;
 
-use serde_json::{Map, Value};
 
 use super::super::*;
 
-use crate::models::{PlayerInfo, ShipStats};
 
 #[test]
 fn rank_info_parses_seasons() {

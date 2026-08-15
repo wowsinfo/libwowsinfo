@@ -15,7 +15,7 @@ mod stats;
 mod version;
 mod wiki;
 
-pub use assemble::assemble_player;
+pub use assemble::{assemble_player, PlayerAssembly};
 pub use clan::{parse_clan_id, parse_clan_info, parse_clan_search};
 pub use dates::recent_dates;
 pub use guard::{clean_pr_data, guard};

@@ -6,22 +6,38 @@ use crate::models::{Achievement, ClanInfo, EncyclopediaShip, PlayerInfo, PlayerS
 use crate::rating::{get_ap, get_colour, get_comment, get_overall_rating};
 
 
+/// Everything the player view needs to assemble the stats screen.
+pub struct PlayerAssembly<'a> {
+    pub player: PlayerInfo,
+    pub ships: Vec<ShipStats>,
+    pub pr: &'a HashMap<u64, PrEntry>,
+    pub warship: &'a HashMap<u64, EncyclopediaShip>,
+    pub server: crate::data::Server,
+    pub clan_tag: String,
+    pub achievements: Vec<Achievement>,
+    pub recent: Option<RecentOverview>,
+    pub rank: Option<RankPlayerInfo>,
+    pub rank_ships: Vec<RankShipStat>,
+    pub clan: Option<ClanInfo>,
+}
+
 /// Assemble the player view shown by the stats screen: compute ratings from
 /// ship stats + PR table and attach wiki names.
 #[must_use]
-pub fn assemble_player(
-    player: PlayerInfo,
-    mut ships: Vec<ShipStats>,
-    pr: &HashMap<u64, PrEntry>,
-    warship: &HashMap<u64, EncyclopediaShip>,
-    server: crate::data::Server,
-    clan_tag: String,
-    achievements: Vec<Achievement>,
-    recent: Option<RecentOverview>,
-    rank: Option<RankPlayerInfo>,
-    rank_ships: Vec<RankShipStat>,
-    clan: Option<ClanInfo>,
-) -> PlayerView {
+pub fn assemble_player(input: PlayerAssembly<'_>) -> PlayerView {
+    let PlayerAssembly {
+        player,
+        mut ships,
+        pr,
+        warship,
+        server,
+        clan_tag,
+        achievements,
+        recent,
+        rank,
+        rank_ships,
+        clan,
+    } = input;
     let rating = get_overall_rating(&mut ships, pr);
     let total_battles: i64 = ships
         .iter()

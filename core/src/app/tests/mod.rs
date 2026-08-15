@@ -1,6 +1,10 @@
 //! App flow tests (init, clan, wiki, player, warship).
-
 //! Split by theme so every file stays small.
+//!
+//! `crux_core::testing::AppTester` is deprecated in crux_core 0.19 but is
+//! explicitly retained for existing test suites; migrating to the Command
+//! API is a separate upgrade, so the deprecation is allowed here on purpose.
+#![allow(deprecated)]
 
 use super::*;
 use crux_core::testing::AppTester;

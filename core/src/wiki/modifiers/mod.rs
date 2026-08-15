@@ -10,6 +10,7 @@
 
 mod adjusted;
 mod apply;
+#[cfg(test)]
 mod tests;
 mod value;
 

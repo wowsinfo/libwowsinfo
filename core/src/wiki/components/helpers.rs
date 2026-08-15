@@ -50,7 +50,6 @@ pub(super) fn num_key_f64_table(json: &Value, key: &str) -> Vec<(f64, f64)> {
 }
 
 /// Parse one `guns`/`launchers` entry.
-
 pub(super) fn bool_field(json: &Value, key: &str) -> bool {
     json.get(key).and_then(Value::as_bool).unwrap_or(false)
 }

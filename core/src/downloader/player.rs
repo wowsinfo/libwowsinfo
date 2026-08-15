@@ -61,7 +61,7 @@ pub fn parse_achievements(
                 .collect()
         })
         .unwrap_or_default();
-    achievements.sort_by(|a, b| b.count.cmp(&a.count));
+    achievements.sort_by_key(|entry| std::cmp::Reverse(entry.count));
     achievements
 }
 

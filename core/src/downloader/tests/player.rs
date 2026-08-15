@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 
-use serde_json::{Map, Value};
 
 use super::super::*;
 
@@ -82,23 +81,23 @@ fn assemble_player_builds_view() {
         ..Default::default()
     }];
 
-    let view = assemble_player(
-        PlayerInfo {
+    let view = assemble_player(crate::downloader::PlayerAssembly {
+        player: PlayerInfo {
             account_id: 1,
             nickname: "HenryQuan".to_string(),
             ..Default::default()
         },
         ships,
-            &pr,
-        &HashMap::new(),
-        crate::data::Server::Asia,
-        String::new(),
-        Vec::new(),
-        None,
-        None,
-        Vec::new(),
-        None,
-    );
+        pr: &pr,
+        warship: &HashMap::new(),
+        server: crate::data::Server::Asia,
+        clan_tag: String::new(),
+        achievements: Vec::new(),
+        recent: None,
+        rank: None,
+        rank_ships: Vec::new(),
+        clan: None,
+    });
     assert_eq!(view.nickname, "HenryQuan");
     assert_eq!(view.server, "asia");
     assert_eq!(view.ships.len(), 1);

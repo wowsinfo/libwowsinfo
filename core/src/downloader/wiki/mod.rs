@@ -4,6 +4,7 @@
 mod helper;
 mod lists;
 mod ship;
+#[cfg(test)]
 mod tests;
 
 pub use lists::{parse_collection_cards, parse_collections, parse_commander_skills, parse_consumables, parse_maps};

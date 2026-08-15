@@ -49,7 +49,6 @@ pub(crate) fn load_wiki(model: &mut Model, dataset: WikiDataset) -> Command<Effe
 
 /// Load the paginated ship encyclopedia, skipping when already loaded or a
 /// download is in flight (used by the wiki ships tab).
-
 pub(crate) fn load_warship(model: &mut Model) -> Command<Effect, Event> {
     if !model.warship.is_empty() || model.downloading_warship {
         return render::render();
@@ -69,7 +68,6 @@ pub(crate) fn load_warship(model: &mut Model) -> Command<Effect, Event> {
 }
 
 /// Load one ship's full wiki entry (`/wows/encyclopedia/ships/?ship_id=`).
-
 pub(crate) fn load_ship_wiki(model: &mut Model, ship_id: u64) -> Command<Effect, Event> {
     let Some(config) = model.config.clone() else {
         return render::render();

@@ -3,6 +3,7 @@
 
 mod model;
 mod sim;
+#[cfg(test)]
 mod tests;
 
 pub use model::{BallisticShell, PenetrationPoint};

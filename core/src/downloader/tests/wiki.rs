@@ -1,12 +1,9 @@
 //! Wiki parser tests.
 
-use std::collections::HashMap;
 
-use serde_json::{Map, Value};
 
 use super::super::*;
 
-use crate::models::{PlayerInfo, ShipStats};
 
 #[test]
 fn wiki_pages_parse_and_key_by_id() {

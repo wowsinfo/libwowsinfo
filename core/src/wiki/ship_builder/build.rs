@@ -89,7 +89,7 @@ pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuil
         .map(|json| EngineStats {
             speed_coef: as_f64(json, "speedCoef"),
         })
-        .or_else(|| {
+        .or({
             if engine_options.is_empty() {
                 Some(EngineStats {
                     speed_coef: 1.0,
@@ -126,11 +126,11 @@ pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuil
                 .and_then(Value::as_array)
                 .map(|arr| {
                     arr.iter()
-                        .filter_map(|l| {
+                        .map(|l| {
                             let horiz = sector(l, "horizSector");
                             let vert = sector(l, "vertSector");
                             let rot = sector(l, "rotationSpeed");
-                            Some(DepthChargeLauncherStats {
+                            DepthChargeLauncherStats {
                                 name: as_str(l, "name"),
                                 num_bombs: as_i64(l, "numBombs"),
                                 shoot_angle: as_f64(l, "shootAngle"),
@@ -144,7 +144,7 @@ pub fn build_ship_build(ship: &ShipInfo, selection: ModuleSelection) -> ShipBuil
                                 roll_speed: as_f64(l, "rollSpeed"),
                                 rotation_speed_x: rot.0,
                                 rotation_speed_y: rot.1,
-                            })
+                            }
                         })
                         .collect()
                 })

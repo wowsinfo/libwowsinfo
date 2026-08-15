@@ -22,7 +22,7 @@ pub struct ClassAverage {
 /// battles are ignored.
 #[must_use]
 pub fn per_class_averages(ships: &[ShipStatLine]) -> Vec<ClassAverage> {
-    let mut totals: Vec<(String, f64, f64, f64, f64, f64, f64, f64)> = Vec::new();
+    let mut totals: Vec<ClassTotals> = Vec::new();
 
     for ship in ships {
         if ship.battles <= 0 {
@@ -40,44 +40,53 @@ pub fn per_class_averages(ships: &[ShipStatLine]) -> Vec<ClassAverage> {
             .map(|weapon| weapon.hits as f64 / weapon.shots as f64 * 100.0)
             .unwrap_or(0.0);
 
-        if let Some(entry) = totals.iter_mut().find(|(class, _, _, _, _, _, _, _)| class == &ship.r#type)
-        {
-            entry.1 += battles;
-            entry.2 += ship.avg_dmg * battles;
-            entry.3 += ship.avg_winrate * battles;
-            entry.4 += ship.avg_frags * battles;
-            entry.5 += avg_xp * battles;
-            entry.6 += survival * battles;
-            entry.7 += accuracy * battles;
+        if let Some(entry) = totals.iter_mut().find(|entry| entry.class == ship.r#type) {
+            entry.battles += battles;
+            entry.dmg += ship.avg_dmg * battles;
+            entry.winrate += ship.avg_winrate * battles;
+            entry.frags += ship.avg_frags * battles;
+            entry.xp += avg_xp * battles;
+            entry.survival += survival * battles;
+            entry.accuracy += accuracy * battles;
         } else {
-            totals.push((
-                ship.r#type.clone(),
+            totals.push(ClassTotals {
+                class: ship.r#type.clone(),
                 battles,
-                ship.avg_dmg * battles,
-                ship.avg_winrate * battles,
-                ship.avg_frags * battles,
-                avg_xp * battles,
-                survival * battles,
-                accuracy * battles,
-            ));
+                dmg: ship.avg_dmg * battles,
+                winrate: ship.avg_winrate * battles,
+                frags: ship.avg_frags * battles,
+                xp: avg_xp * battles,
+                survival: survival * battles,
+                accuracy: accuracy * battles,
+            });
         }
     }
 
     let mut result: Vec<ClassAverage> = totals
         .into_iter()
-        .map(
-            |(class, battles, dmg, winrate, frags, xp, survival, accuracy)| ClassAverage {
-                class,
-                battles: battles as i64,
-                avg_dmg: dmg / battles,
-                avg_winrate: winrate / battles,
-                avg_frags: frags / battles,
-                avg_xp: xp / battles,
-                survival: survival / battles,
-                accuracy: accuracy / battles,
-            },
-        )
+        .map(|totals| ClassAverage {
+            class: totals.class,
+            battles: totals.battles as i64,
+            avg_dmg: totals.dmg / totals.battles,
+            avg_winrate: totals.winrate / totals.battles,
+            avg_frags: totals.frags / totals.battles,
+            avg_xp: totals.xp / totals.battles,
+            survival: totals.survival / totals.battles,
+            accuracy: totals.accuracy / totals.battles,
+        })
         .collect();
-    result.sort_by(|a, b| b.battles.cmp(&a.battles));
+    result.sort_by_key(|entry| std::cmp::Reverse(entry.battles));
     result
+}
+
+/// Per-class accumulation (battles-weighted sums before averaging).
+struct ClassTotals {
+    class: String,
+    battles: f64,
+    dmg: f64,
+    winrate: f64,
+    frags: f64,
+    xp: f64,
+    survival: f64,
+    accuracy: f64,
 }

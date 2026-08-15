@@ -47,11 +47,10 @@ fn modifier_label(lang: &LangMap, ship_class: Option<&str>, key: &str) -> String
     if let Some(label) = lang.get_raw(&base) {
         return label.to_string();
     }
-    if let Some(class) = ship_class {
-        if let Some(label) = lang.get_raw(&format!("{base}_{}", class.to_uppercase())) {
+    if let Some(class) = ship_class
+        && let Some(label) = lang.get_raw(&format!("{base}_{}", class.to_uppercase())) {
             return label.to_string();
         }
-    }
     for class in MODIFIER_CLASSES {
         if let Some(label) = lang.get_raw(&format!("{base}_{}", class.to_uppercase())) {
             return label.to_string();
@@ -123,7 +122,6 @@ fn humanize_modifier_key(key: &str) -> String {
         "AAExtraBubbles" => "AA extra flak clouds",
         "AAMaxHP" => "AA mount HP",
         "GMDamageCoeff" => "Main gun damage",
-        "GMAPDamageCoeff" => "AP damage",
         "GMHECSDamageCoeff" => "HE damage",
         "GMCritProb" => "Main gun critical chance",
         "GMMaxHP" => "Main gun HP",

@@ -3,6 +3,7 @@
 use crate::charts::*;
 use crate::models::{PlayerStatistics, PvpStats, ShipStatLine, WeaponStats};
 
+#[allow(clippy::too_many_arguments)] // test fixture builder
 fn make_ship(
     ship_id: u64,
     name: &str,

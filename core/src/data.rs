@@ -113,7 +113,7 @@ pub fn should_update_with_cycle(curr_secs: i64, last_update_secs: i64) -> bool {
 #[must_use]
 pub fn days_between(a_secs: i64, b_secs: i64) -> i64 {
     let diff = (a_secs - b_secs).unsigned_abs();
-    ((diff + SECONDS_PER_DAY as u64 - 1) / SECONDS_PER_DAY as u64) as i64
+    diff.div_ceil(SECONDS_PER_DAY as u64) as i64
 }
 
 #[cfg(test)]

@@ -1,12 +1,9 @@
 //! Clan tests.
 
-use std::collections::HashMap;
 
-use serde_json::{Map, Value};
 
 use super::super::*;
 
-use crate::models::{PlayerInfo, ShipStats};
 
 #[test]
 fn clan_id_and_tag_parse_from_accountinfo() {

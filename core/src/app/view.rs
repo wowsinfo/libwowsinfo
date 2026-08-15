@@ -62,7 +62,9 @@ pub struct ViewModel {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Facet, PartialEq)]
 #[repr(C)]
+#[derive(Default)]
 pub enum Phase {
+    #[default]
     Idle,
     Searching,
     LoadingPlayer,
@@ -70,8 +72,3 @@ pub enum Phase {
     Error(String),
 }
 
-impl Default for Phase {
-    fn default() -> Self {
-        Self::Idle
-    }
-}

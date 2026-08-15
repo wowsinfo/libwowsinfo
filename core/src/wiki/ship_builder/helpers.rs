@@ -49,7 +49,7 @@ pub(super) fn parse_module_options(ship: &ShipInfo, slot_key: &str) -> Vec<Modul
         .map(|options| {
             options
                 .iter()
-                .filter_map(|option| {
+                .map(|option| {
                     let components = option
                         .get("components")
                         .and_then(Value::as_object)
@@ -72,13 +72,13 @@ pub(super) fn parse_module_options(ship: &ShipInfo, slot_key: &str) -> Vec<Modul
                         })
                         .unwrap_or_default();
                     let cost = option.get("cost").unwrap_or(&Value::Null);
-                    Some(ModuleOption {
+                    ModuleOption {
                         index: as_i64(option, "index"),
                         name: as_str(option, "name"),
                         cost_xp: as_i64(cost, "costXP"),
                         cost_cr: as_i64(cost, "costCR"),
                         components,
-                    })
+                    }
                 })
                 .collect()
         })

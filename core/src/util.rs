@@ -24,7 +24,7 @@ pub fn round_to(num: Option<f64>, digit: u32) -> f64 {
 #[must_use]
 pub fn day_difference(now_secs: i64, time_secs: i64) -> i64 {
     let diff = (now_secs - time_secs).unsigned_abs();
-    ((diff + 86_399) / 86_400) as i64
+    diff.div_ceil(86_400) as i64
 }
 
 /// Deterministic UTC rendering matching the shape of `humanTimeString` in

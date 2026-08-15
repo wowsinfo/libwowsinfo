@@ -2,6 +2,7 @@
 
 use super::*;
 
+#[test]
 fn load_wiki_collections_populates_view() {
     let app = AppTester::<App>::default();
     let mut model = Model::default();

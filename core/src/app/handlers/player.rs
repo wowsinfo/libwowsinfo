@@ -72,7 +72,6 @@ pub(crate) fn search(model: &mut Model, query: String) -> Command<Effect, Event>
 }
 
 /// Clan search: `/wows/clans/list/`.
-
 pub(crate) fn search_clan(model: &mut Model, query: String) -> Command<Effect, Event> {
     model.clan_search_results.clear();
     if query.trim().is_empty() {
@@ -92,7 +91,6 @@ pub(crate) fn search_clan(model: &mut Model, query: String) -> Command<Effect, E
 }
 
 /// Open clan info: `/wows/clans/info/`.
-
 pub(crate) fn select_clan(model: &mut Model, clan_id: u64) -> Command<Effect, Event> {
     let Some(config) = model.config.clone() else {
         return render::render();
@@ -109,7 +107,6 @@ pub(crate) fn select_clan(model: &mut Model, clan_id: u64) -> Command<Effect, Ev
 
 /// Load a wiki dataset (`/wows/encyclopedia/*`), skipping when it is already
 /// loaded or a download is in flight.
-
 pub(crate) fn select(model: &mut Model, account_id: u64) -> Command<Effect, Event> {
     model.phase = Phase::LoadingPlayer;
     model.pending_account_id = Some(account_id);

@@ -7,7 +7,7 @@ mod profile;
 mod ships;
 mod ship_wiki;
 mod skills;
-mod wiki;
+mod wiki_items;
 
 pub use armament::{AntiAircraftProfile, AntiAircraftSlot, ArtilleryProfile, GunSlot, ShellInfo, TorpedoProfile};
 pub use consumables::{Consumable, ConsumableProfile};
@@ -15,5 +15,5 @@ pub use profile::{EngineProfile, HullProfile, MinMax, ShipArmour, ShipConcealmen
 pub use ships::{EncyclopediaShip, Images, RawEncyclopediaShip};
 pub use ship_wiki::ShipWiki;
 pub use skills::{CommanderSkill, Perk};
-pub use wiki::{CollectionCard, WikiCollection, WikiMap};
+pub use wiki_items::{CollectionCard, WikiCollection, WikiMap};
 

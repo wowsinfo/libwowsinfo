@@ -68,8 +68,6 @@ fn init_loads_cached_pr_from_kv() {
 }
 
 #[test]
-
-#[test]
 fn init_loads_players_online() {
     let app = AppTester::<App>::default();
     let mut model = Model::default();

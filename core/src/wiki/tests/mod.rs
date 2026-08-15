@@ -11,6 +11,7 @@ mod flags;
 mod hull;
 mod main_battery;
 mod parse;
+mod real_data;
 mod skills;
 mod special;
 mod torpedo;

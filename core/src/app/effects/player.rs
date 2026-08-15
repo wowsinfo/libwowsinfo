@@ -155,14 +155,13 @@ pub(crate) fn on_achievements_wiki_loaded(
         HttpOutcome::Ok { body } => {
             let json = serde_json::from_str(&body).unwrap_or_default();
             model.achievements_wiki = downloader::parse_achievements_wiki(&json);
-            if !model.achievements_wiki.is_empty() {
-                if let Ok(json) = serde_json::to_string(&model.achievements_wiki) {
+            if !model.achievements_wiki.is_empty()
+                && let Ok(json) = serde_json::to_string(&model.achievements_wiki) {
                     return Command::all([
                         kv_set_event(data::saved::ACHIEVEMENT, json),
                         try_assemble(model),
                     ]);
                 }
-            }
         }
         HttpOutcome::Err { message } => {
             model.phase = Phase::Error(format!("Achievements wiki failed: {message}"));
@@ -215,19 +214,19 @@ pub(super) fn try_assemble(model: &mut Model) -> Command<Effect, Event> {
     }
     if let (Some(player), Some(ships)) = (model.pending_player.clone(), model.pending_ships.clone())
     {
-        let view = downloader::assemble_player(
+        let view = downloader::assemble_player(downloader::PlayerAssembly {
             player,
             ships,
-            &model.pr,
-            &model.warship,
-            model.server,
-            model.clan_tag.clone(),
-            model.achievements.clone(),
-            model.recent.clone(),
-            model.rank.clone(),
-            model.rank_ships.clone(),
-            model.clan.clone(),
-        );
+            pr: &model.pr,
+            warship: &model.warship,
+            server: model.server,
+            clan_tag: model.clan_tag.clone(),
+            achievements: model.achievements.clone(),
+            recent: model.recent.clone(),
+            rank: model.rank.clone(),
+            rank_ships: model.rank_ships.clone(),
+            clan: model.clan.clone(),
+        });
         model.selected = Some(view);
         model.phase = Phase::Player;
     }

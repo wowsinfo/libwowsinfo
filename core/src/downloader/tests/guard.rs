@@ -1,12 +1,10 @@
 //! Guard / online-count tests.
 
-use std::collections::HashMap;
 
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use super::super::*;
 
-use crate::models::{PlayerInfo, ShipStats};
 
 #[test]
 fn guard_walks_paths_and_falls_back() {

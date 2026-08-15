@@ -9,6 +9,7 @@
 mod build;
 mod rows;
 mod similar;
+#[cfg(test)]
 mod tests;
 mod types;
 

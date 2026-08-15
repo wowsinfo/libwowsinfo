@@ -1,8 +1,6 @@
 //! Projectile type definitions.
 
 /// Armor-piercing ballistic block (`projectiles.<name>.ap`).
-
-/// Armor-piercing ballistic block (`projectiles.<name>.ap`).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ApInfo {
     pub diameter_m: f64,

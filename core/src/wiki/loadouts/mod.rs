@@ -8,6 +8,7 @@ mod flags;
 mod next_ships;
 mod skills;
 mod summary;
+#[cfg(test)]
 mod tests;
 mod upgrades;
 mod views;

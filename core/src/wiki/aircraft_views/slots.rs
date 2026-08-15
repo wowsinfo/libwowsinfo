@@ -61,7 +61,7 @@ pub fn aircraft_slot_views(
             let option_views = options
                 .iter()
                 .enumerate()
-                .filter_map(|(index, option)| {
+                .map(|(index, option)| {
                     let name = option
                         .get("name")
                         .and_then(Value::as_str)
@@ -77,17 +77,17 @@ pub fn aircraft_slot_views(
                         .map(|aircraft| {
                             AircraftDetail::from_aircraft(lang, data, aircraft, mods, ship_class)
                         });
-                    Some(AircraftOptionView {
+                    AircraftOptionView {
                         index: index as i64,
                         name: lang.get(&name),
                         aircraft,
-                    })
+                    }
                 })
                 .collect();
             Some(AircraftSlotView {
                 slot: (*component_key).to_string(),
                 label: (*label).to_string(),
-                selected: selected(*component_key) as i64,
+                selected: selected(component_key) as i64,
                 options: option_views,
             })
         })

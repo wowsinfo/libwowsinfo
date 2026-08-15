@@ -128,7 +128,7 @@ pub(super) fn depth_charge_view(lang: &LangMap, data: &GameData, stats: &DepthCh
     let packs = (stats.packs.num_shots > 0
         || stats.packs.max_packs > 0
         || stats.packs.shot_delay > 0.0)
-        .then(|| DepthChargePackView {
+        .then_some(DepthChargePackView {
             shots: stats.packs.num_shots,
             shots_in_pack: stats.packs.shots_in_pack,
             max_packs: stats.packs.max_packs,

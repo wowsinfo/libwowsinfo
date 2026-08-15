@@ -40,13 +40,12 @@ fn read_app_key(path: &std::path::Path) -> String {
     };
     for line in content.lines() {
         let line = line.trim();
-        if let Some(rest) = line.strip_prefix("app_key") {
-            if let Some(eq) = rest.find('=') {
+        if let Some(rest) = line.strip_prefix("app_key")
+            && let Some(eq) = rest.find('=') {
                 let value = rest[eq + 1..].trim();
                 let value = value.trim_matches('"').trim();
                 return value.to_string();
             }
-        }
     }
     String::new()
 }

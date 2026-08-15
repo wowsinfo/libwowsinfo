@@ -27,7 +27,6 @@ pub(crate) fn set_local_data(
 }
 
 /// Rebuild everything that depends on the language map after it changes.
-
 fn refresh_local_lang(model: &mut Model) {
     if let Some(raw) = &model.raw_lang_json {
         let lang_json = serde_json::from_str(raw).unwrap_or_default();
@@ -45,7 +44,6 @@ fn refresh_local_lang(model: &mut Model) {
 }
 
 /// Fill the warship encyclopedia from the local game data (offline ship list).
-
 fn fill_local_warships(model: &mut Model) {
     if let Some(data) = &model.local_data {
         model.warship = data
@@ -73,7 +71,6 @@ fn fill_local_warships(model: &mut Model) {
 }
 
 /// Change the interface/data language and persist it.
-
 pub(crate) fn set_language(model: &mut Model, language: String) -> Command<Effect, Event> {
     model.api_language = if language.is_empty() {
         data::DEFAULT_USER_LANGUAGE.to_string()
@@ -117,7 +114,6 @@ fn rebuild_local_ship(model: &mut Model) {
 }
 
 /// Fill the warship encyclopedia from the local game data (offline ship list).
-
 pub(crate) fn load_local_warships(model: &mut Model) -> Command<Effect, Event> {
     if !model.warship.is_empty() {
         return render::render();
@@ -127,7 +123,6 @@ pub(crate) fn load_local_warships(model: &mut Model) -> Command<Effect, Event> {
 }
 
 /// Build the local wiki entry for one ship from `wowsinfo.json`.
-
 pub(crate) fn load_local_ship_wiki(model: &mut Model, ship_id: u64) -> Command<Effect, Event> {
     model.local_ship_id = Some(ship_id);
     rebuild_local_ship(model);
@@ -135,7 +130,6 @@ pub(crate) fn load_local_ship_wiki(model: &mut Model, ship_id: u64) -> Command<E
 }
 
 /// Apply a module slot selection and rebuild the selected local ship.
-
 pub(crate) fn select_local_ship_module(
     model: &mut Model,
     slot: String,
@@ -159,7 +153,6 @@ pub(crate) fn select_local_ship_module(
 }
 
 /// Build the local comparison table for a list of ship ids.
-
 pub(crate) fn load_local_compare(
     model: &mut Model,
     ship_ids: Vec<u64>,
@@ -171,7 +164,6 @@ pub(crate) fn load_local_compare(
 }
 
 /// Toggle a selected commander skill and rebuild the ship stats.
-
 pub(crate) fn toggle_local_skill(model: &mut Model, key: String) -> Command<Effect, Event> {
     if !model.local_skills.remove(&key) {
         model.local_skills.insert(key);
@@ -181,7 +173,6 @@ pub(crate) fn toggle_local_skill(model: &mut Model, key: String) -> Command<Effe
 }
 
 /// Toggle a selected module upgrade and rebuild the ship stats.
-
 pub(crate) fn toggle_local_upgrade(model: &mut Model, key: String) -> Command<Effect, Event> {
     if !model.local_upgrades.remove(&key) {
         model.local_upgrades.insert(key);
@@ -191,7 +182,6 @@ pub(crate) fn toggle_local_upgrade(model: &mut Model, key: String) -> Command<Ef
 }
 
 /// Toggle a selected signal flag and rebuild the ship stats.
-
 pub(crate) fn toggle_local_flag(model: &mut Model, key: String) -> Command<Effect, Event> {
     if !model.local_flags.remove(&key) {
         model.local_flags.insert(key);
@@ -201,7 +191,6 @@ pub(crate) fn toggle_local_flag(model: &mut Model, key: String) -> Command<Effec
 }
 
 /// Set the simulated HP level (0..1) and rebuild conditional stats.
-
 pub(crate) fn set_local_hp(model: &mut Model, fraction: f64) -> Command<Effect, Event> {
     model.local_hp = fraction.clamp(0.0, 1.0);
     rebuild_local_ship(model);
@@ -209,7 +198,6 @@ pub(crate) fn set_local_hp(model: &mut Model, fraction: f64) -> Command<Effect, 
 }
 
 /// Set whether the ship is considered spotted and rebuild trigger skills.
-
 pub(crate) fn set_local_spotted(model: &mut Model, spotted: bool) -> Command<Effect, Event> {
     model.local_spotted = spotted;
     rebuild_local_ship(model);

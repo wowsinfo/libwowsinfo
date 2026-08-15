@@ -52,8 +52,7 @@ fn search_error_sets_phase() {
     let update = app
         .resolve(
             request,
-            HttpResult::Err(crux_http::HttpError::from(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            HttpResult::Err(crux_http::HttpError::from(std::io::Error::other(
                 "network down",
             ))),
         )

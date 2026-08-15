@@ -163,11 +163,10 @@ pub(crate) fn on_kv_loaded(model: &mut Model, key: String, value: KvOutcome) -> 
     match value {
         KvOutcome::Ok { value: Some(json) } => match key.as_str() {
             data::local::USER_SERVER => {
-                if let Ok(index) = serde_json::from_str::<u8>(&json) {
-                    if let Some(server) = Server::from_index(index as usize) {
+                if let Ok(index) = serde_json::from_str::<u8>(&json)
+                    && let Some(server) = Server::from_index(index as usize) {
                         model.server = server;
                     }
-                }
             }
             data::local::USER_LANGUAGE => {
                 if !model.language_overridden
